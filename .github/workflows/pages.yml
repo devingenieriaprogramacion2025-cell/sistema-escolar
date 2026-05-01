@@ -1,0 +1,73 @@
+name: Deploy Frontend To GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare static site artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_DIR="sistema-escolar/frontend"
+          OUTPUT_DIR="_site"
+
+          if [ ! -d "${SOURCE_DIR}" ]; then
+            echo "Frontend folder not found at ${SOURCE_DIR}"
+            exit 1
+          fi
+
+          mkdir -p "${OUTPUT_DIR}"
+          cp -R "${SOURCE_DIR}/." "${OUTPUT_DIR}/"
+
+          if [ ! -f "${OUTPUT_DIR}/index.html" ] && [ -f "${OUTPUT_DIR}/login.html" ]; then
+            cat > "${OUTPUT_DIR}/index.html" <<'EOF'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0;url=./login.html">
+              <title>Sistema Escolar</title>
+            </head>
+            <body>
+              <p>Redirecting to <a href="./login.html">login</a>...</p>
+            </body>
+          </html>
+          EOF
+          fi
+
+          touch "${OUTPUT_DIR}/.nojekyll"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
