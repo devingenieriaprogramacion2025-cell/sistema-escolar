@@ -4,7 +4,7 @@
   "private": true,
   "description": "Lanzador raiz del sistema escolar",
   "scripts": {
-    "start": "npm --prefix sistema-escolar start",
+    "start": "node sistema-escolar/backend/server.js",
     "db:init:sqlserver": "npm --prefix sistema-escolar run db:init:sqlserver",
     "install:backend": "npm --prefix sistema-escolar run install:backend"
   }
