@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INTRANET SANTO TOMAS DE AQUINO</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <section class="login-brand">
+      <img
+        class="login-brand-image"
+        src="img/27-03-2026_15-42-22colegio (1).jpg"
+        alt="Fachada del Colegio Santo Tomas de Aquino">
+      <h1>Colegio Santo Tomas de Aquino</h1>
+      <p>Sistema Web de Gestion de Recursos y Operaciones Internas Escolares</p>
+      <p>Acceso institucional solo para cuentas autorizadas por administracion.</p>
+    </section>
+
+    <section class="login-form-wrap">
+      <h2>Iniciar sesion</h2>
+      <form id="loginForm" class="login-form">
+        <label for="email">Correo institucional</label>
+        <input id="email" type="email" placeholder="ejemplo@colegio.com" required>
+
+        <label for="password">Contrasena</label>
+        <input id="password" type="password" placeholder="********" required>
+
+        <button type="submit">Ingresar al sistema</button>
+        <p id="loginError" class="error-text"></p>
+      </form>
+      <p class="auth-note">No existe registro publico. Las cuentas solo pueden ser creadas por Administrador.</p>
+    </section>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/pages/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservas | Sistema Escolar</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="app-shell">
+  <aside id="sidebar"></aside>
+  <main class="main">
+    <header id="topbar"></header>
+
+    <section class="page">
+      <article class="panel" id="reservationFormPanel">
+        <h3>Solicitar reserva</h3>
+        <form id="reservationForm" class="inline-form">
+          <div id="requesterField">
+            <label for="requesterId">Solicitante (opcional)</label>
+            <select id="requesterId"></select>
+          </div>
+          <div>
+            <label for="resourceId">Recurso</label>
+            <select id="resourceId" required></select>
+          </div>
+          <input id="purpose" placeholder="Motivo" required>
+          <input id="startDate" type="datetime-local" required>
+          <input id="endDate" type="datetime-local" required>
+          <button type="submit">Enviar reserva</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <h3>Listado de reservas</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Solicitante</th>
+                <th>Recurso</th>
+                <th>Motivo</th>
+                <th>Periodo</th>
+                <th>Estado</th>
+                <th>Comentario</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="reservationsTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/pages/reservas.js"></script>
+</body>
+</html>

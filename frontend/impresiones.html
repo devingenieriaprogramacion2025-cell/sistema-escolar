@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Impresiones | Sistema Escolar</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="app-shell">
+  <aside id="sidebar"></aside>
+  <main class="main">
+    <header id="topbar"></header>
+
+    <section class="page">
+      <article class="panel" id="printFormPanel">
+        <h3>Solicitud de impresion</h3>
+        <form id="printForm" class="inline-form">
+          <input id="documentName" placeholder="Nombre del documento" required>
+          <input id="pages" type="number" min="1" placeholder="Paginas" required>
+          <input id="copies" type="number" min="1" placeholder="Copias" required>
+          <label><input id="color" type="checkbox"> Impresion a color</label>
+          <label><input id="doubleSided" type="checkbox"> Doble cara</label>
+          <button type="submit">Registrar solicitud</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <h3>Listado de impresiones</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Solicitante</th>
+                <th>Documento</th>
+                <th>Paginas</th>
+                <th>Copias</th>
+                <th>Formato</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="printsTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/pages/impresiones.js"></script>
+</body>
+</html>
