@@ -1,0 +1,3 @@
+[submodule "sistema-escolar"]
+	path = sistema-escolar
+	url = https://github.com/devingenieriaprogramacion2025-cell/sistema-escolar.git
