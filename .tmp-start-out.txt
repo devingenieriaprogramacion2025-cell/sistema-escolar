@@ -1,0 +1,6 @@
+
+> sistema-escolar-launcher@1.0.0 start
+> node sistema-escolar/scripts/servidor-estatico.js
+
+Servidor estatico iniciado en http://localhost:5500/login.html
+Servidor estatico iniciado en http://localhost:5501/login.html

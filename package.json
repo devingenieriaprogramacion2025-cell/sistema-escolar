@@ -1,0 +1,9 @@
+{
+  "name": "sistema-escolar-launcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lanzador raiz para modo estatico",
+  "scripts": {
+    "start": "node sistema-escolar/scripts/servidor-estatico.js"
+  }
+}
