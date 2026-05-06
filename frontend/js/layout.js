@@ -1,4 +1,5 @@
-﻿(function bootstrapLayout() {
+﻿// LAYOUT UI: construye sidebar/topbar, utilidades visuales y helpers de formato.
+(function bootstrapLayout() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const statusClass = (value) => String(value || '').toLowerCase().replace(/\s+/g, '_');
@@ -113,3 +114,4 @@
     formatNumber
   };
 })();
+

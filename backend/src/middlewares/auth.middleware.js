@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+﻿const jwt = require('jsonwebtoken');
 const ApiError = require('../utils/ApiError');
 const { getRolePermissions } = require('../constants/roles');
 const { one } = require('../services/sql.service');
@@ -22,13 +22,13 @@ const authMiddleware = async (req, res, next) => {
       `
       SELECT
         u.id,
-        u.name,
+        u.nombre,
         u.email,
         u.area,
-        u.status,
-        r.name AS role
-      FROM dbo.users u
-      INNER JOIN dbo.roles r ON r.id = u.role_id
+        u.estado,
+        r.nombre AS role
+      FROM dbo.usuarios u
+      INNER JOIN dbo.roles r ON r.id = u.rol_id
       WHERE u.id = @id;
       `,
       { id: Number(payload.id) }
@@ -38,14 +38,14 @@ const authMiddleware = async (req, res, next) => {
       return next(new ApiError(401, 'Usuario no valido'));
     }
 
-    if (user.status !== 'ACTIVE') {
+    if (user.estado !== 'ACTIVE') {
       return next(new ApiError(403, 'Cuenta desactivada'));
     }
 
     req.user = {
       id: String(user.id),
       _id: String(user.id),
-      name: user.name,
+      nombre: user.nombre,
       email: user.email,
       role: user.role,
       area: user.area,
@@ -59,3 +59,8 @@ const authMiddleware = async (req, res, next) => {
 };
 
 module.exports = authMiddleware;
+
+
+
+
+

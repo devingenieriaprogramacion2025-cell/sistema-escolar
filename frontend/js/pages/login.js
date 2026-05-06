@@ -1,4 +1,5 @@
-﻿(function loginPage() {
+﻿// PAGINA LOGIN: valida credenciales y crea sesion para ingresar al sistema.
+(function loginPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -28,3 +29,4 @@
     });
   });
 })();
+

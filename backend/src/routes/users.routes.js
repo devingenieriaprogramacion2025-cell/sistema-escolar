@@ -21,6 +21,11 @@ router.get('/', asyncHandler(usersController.listUsers));
 router.get('/roles', asyncHandler(usersController.listRoles));
 router.post('/', asyncHandler(usersController.createUser));
 router.put('/:id', asyncHandler(usersController.updateUser));
-router.patch('/:id/status', asyncHandler(usersController.updateUserStatus));
+router.patch('/:id/estado', asyncHandler(usersController.updateUserStatus));
 
 module.exports = router;
+
+
+
+
+

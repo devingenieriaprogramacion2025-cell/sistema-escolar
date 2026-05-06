@@ -14,3 +14,8 @@ router.post('/', authorizeRoles(ROLES.ADMIN, ROLES.INSPECTORIA, ROLES.DOCENTE, R
 router.patch('/:id/review', authorizeRoles(ROLES.DIRECTIVO), asyncHandler(internalRequestsController.reviewInternalRequest));
 
 module.exports = router;
+
+
+
+
+

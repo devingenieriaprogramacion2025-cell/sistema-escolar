@@ -15,11 +15,11 @@ const authorizePermissions = (...requiredPermissions) => {
       return next(new ApiError(401, 'Usuario no autenticado'));
     }
 
-    if (req.user.permissions.includes('*')) {
+    if (req.user.permisos.includes('*')) {
       return next();
     }
 
-    const hasPermission = requiredPermissions.some((permission) => req.user.permissions.includes(permission));
+    const hasPermission = requiredPermissions.some((permiso) => req.user.permisos.includes(permiso));
 
     if (!hasPermission) {
       return next(new ApiError(403, 'No tienes permisos para esta accion'));
@@ -33,3 +33,8 @@ module.exports = {
   authorizeRoles,
   authorizePermissions
 };
+
+
+
+
+

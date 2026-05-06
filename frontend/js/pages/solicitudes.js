@@ -1,4 +1,5 @@
-﻿(function requestsPage() {
+﻿// PAGINA SOLICITUDES: flujo de solicitudes internas y su aprobacion/rechazo.
+(function requestsPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const state = {
@@ -113,3 +114,4 @@
     }
   });
 })();
+

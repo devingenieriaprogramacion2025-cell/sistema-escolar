@@ -1,4 +1,5 @@
-﻿(function inventoryPage() {
+﻿// PAGINA INVENTARIO: gestiona recursos y categorias con filtros y acciones CRUD.
+(function inventoryPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const state = {
@@ -204,3 +205,4 @@
     }
   });
 })();
+

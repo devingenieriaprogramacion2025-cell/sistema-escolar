@@ -16,28 +16,28 @@ const buildScopedFilters = async (req, rawQuery) => {
 
   const fromDate = rawQuery.from ? new Date(rawQuery.from) : null;
   if (fromDate && !Number.isNaN(fromDate.getTime())) {
-    filters.loan.push('l.created_at >= @fromDate');
-    filters.reservation.push('rv.created_at >= @fromDate');
-    filters.request.push('ir.created_at >= @fromDate');
-    filters.print.push('pr.created_at >= @fromDate');
+    filters.loan.push('l.creado_en >= @fromDate');
+    filters.reservation.push('rv.creado_en >= @fromDate');
+    filters.request.push('ir.creado_en >= @fromDate');
+    filters.print.push('pr.creado_en >= @fromDate');
     params.fromDate = fromDate;
   }
 
   const toDate = rawQuery.to ? new Date(rawQuery.to) : null;
   if (toDate && !Number.isNaN(toDate.getTime())) {
     toDate.setHours(23, 59, 59, 999);
-    filters.loan.push('l.created_at <= @toDate');
-    filters.reservation.push('rv.created_at <= @toDate');
-    filters.request.push('ir.created_at <= @toDate');
-    filters.print.push('pr.created_at <= @toDate');
+    filters.loan.push('l.creado_en <= @toDate');
+    filters.reservation.push('rv.creado_en <= @toDate');
+    filters.request.push('ir.creado_en <= @toDate');
+    filters.print.push('pr.creado_en <= @toDate');
     params.toDate = toDate;
   }
 
   if (req.user.role === ROLES.DOCENTE) {
-    filters.loan.push('l.requester_id = @scopeUserId');
-    filters.reservation.push('rv.requester_id = @scopeUserId');
-    filters.request.push('ir.requester_id = @scopeUserId');
-    filters.print.push('pr.requester_id = @scopeUserId');
+    filters.loan.push('l.solicitante_id = @scopeUserId');
+    filters.reservation.push('rv.solicitante_id = @scopeUserId');
+    filters.request.push('ir.solicitante_id = @scopeUserId');
+    filters.print.push('pr.solicitante_id = @scopeUserId');
     params.scopeUserId = Number(req.user.id);
   }
 
@@ -49,16 +49,16 @@ const buildScopedFilters = async (req, rawQuery) => {
   }
 
   if (rawQuery.userId && isValidObjectId(rawQuery.userId)) {
-    filters.loan.push('l.requester_id = @queryUserId');
-    filters.reservation.push('rv.requester_id = @queryUserId');
-    filters.request.push('ir.requester_id = @queryUserId');
-    filters.print.push('pr.requester_id = @queryUserId');
+    filters.loan.push('l.solicitante_id = @queryUserId');
+    filters.reservation.push('rv.solicitante_id = @queryUserId');
+    filters.request.push('ir.solicitante_id = @queryUserId');
+    filters.print.push('pr.solicitante_id = @queryUserId');
     params.queryUserId = Number(rawQuery.userId);
   }
 
   if (rawQuery.resourceId && isValidObjectId(rawQuery.resourceId)) {
-    filters.loan.push('l.resource_id = @queryResourceId');
-    filters.reservation.push('rv.resource_id = @queryResourceId');
+    filters.loan.push('l.recurso_id = @queryResourceId');
+    filters.reservation.push('rv.recurso_id = @queryResourceId');
     params.queryResourceId = Number(rawQuery.resourceId);
   }
 
@@ -90,7 +90,7 @@ const buildSummary = async (req) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.resources r
+      FROM dbo.recursos r
       ${resourceWhere};
       `,
       params
@@ -98,17 +98,17 @@ const buildSummary = async (req) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.loans l
-      INNER JOIN dbo.resources res ON res.id = l.resource_id
-      ${loanWhere ? `${loanWhere} AND l.status IN ('ACTIVE', 'OVERDUE')` : "WHERE l.status IN ('ACTIVE', 'OVERDUE')"};
+      FROM dbo.prestamos l
+      INNER JOIN dbo.recursos res ON res.id = l.recurso_id
+      ${loanWhere ? `${loanWhere} AND l.estado IN ('ACTIVE', 'OVERDUE')` : "WHERE l.estado IN ('ACTIVE', 'OVERDUE')"};
       `,
       params
     ),
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.loans l
-      INNER JOIN dbo.resources res ON res.id = l.resource_id
+      FROM dbo.prestamos l
+      INNER JOIN dbo.recursos res ON res.id = l.recurso_id
       ${loanWhere};
       `,
       params
@@ -116,17 +116,17 @@ const buildSummary = async (req) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.reservations rv
-      INNER JOIN dbo.resources res ON res.id = rv.resource_id
-      ${reservationWhere ? `${reservationWhere} AND rv.status = 'PENDING'` : "WHERE rv.status = 'PENDING'"};
+      FROM dbo.reservas rv
+      INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
+      ${reservationWhere ? `${reservationWhere} AND rv.estado = 'PENDING'` : "WHERE rv.estado = 'PENDING'"};
       `,
       params
     ),
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.reservations rv
-      INNER JOIN dbo.resources res ON res.id = rv.resource_id
+      FROM dbo.reservas rv
+      INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
       ${reservationWhere};
       `,
       params
@@ -134,7 +134,7 @@ const buildSummary = async (req) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.internal_requests ir
+      FROM dbo.solicitudes_internas ir
       ${requestWhere};
       `,
       params
@@ -142,15 +142,15 @@ const buildSummary = async (req) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.internal_requests ir
-      ${requestWhere ? `${requestWhere} AND ir.status IN ('PENDING', 'IN_PROGRESS')` : "WHERE ir.status IN ('PENDING', 'IN_PROGRESS')"};
+      FROM dbo.solicitudes_internas ir
+      ${requestWhere ? `${requestWhere} AND ir.estado IN ('PENDING', 'IN_PROGRESS')` : "WHERE ir.estado IN ('PENDING', 'IN_PROGRESS')"};
       `,
       params
     ),
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.print_requests pr
+      FROM dbo.solicitudes_impresion pr
       ${printWhere};
       `,
       params
@@ -158,15 +158,15 @@ const buildSummary = async (req) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.print_requests pr
-      ${printWhere ? `${printWhere} AND pr.status = 'PENDING'` : "WHERE pr.status = 'PENDING'"};
+      FROM dbo.solicitudes_impresion pr
+      ${printWhere ? `${printWhere} AND pr.estado = 'PENDING'` : "WHERE pr.estado = 'PENDING'"};
       `,
       params
     ),
     scalar(
       `
-      SELECT ISNULL(SUM(pr.pages * pr.copies), 0) AS pages
-      FROM dbo.print_requests pr
+      SELECT ISNULL(SUM(pr.paginas * pr.copias), 0) AS paginas
+      FROM dbo.solicitudes_impresion pr
       ${printWhere};
       `,
       params
@@ -174,15 +174,15 @@ const buildSummary = async (req) => {
     query(
       `
       SELECT TOP 5
-        l.resource_id AS resource_id,
-        res.name AS resource_name,
-        res.code AS resource_code,
-        SUM(l.quantity) AS total_quantity
-      FROM dbo.loans l
-      INNER JOIN dbo.resources res ON res.id = l.resource_id
+        l.recurso_id AS recurso_id,
+        res.nombre AS resource_nombre,
+        res.codigo AS resource_codigo,
+        SUM(l.cantidad) AS cantidad_total
+      FROM dbo.prestamos l
+      INNER JOIN dbo.recursos res ON res.id = l.recurso_id
       ${loanWhere}
-      GROUP BY l.resource_id, res.name, res.code
-      ORDER BY total_quantity DESC;
+      GROUP BY l.recurso_id, res.nombre, res.codigo
+      ORDER BY cantidad_total DESC;
       `,
       params
     )
@@ -206,10 +206,10 @@ const buildSummary = async (req) => {
       totalPrintedPages: Number(totalPrintedPages || 0)
     },
     topResources: topResources.map((item) => ({
-      resourceId: String(item.resource_id),
-      resourceName: item.resource_name,
-      resourceCode: item.resource_code,
-      totalQuantity: Number(item.total_quantity)
+      resourceId: String(item.recurso_id),
+      resourceName: item.resource_nombre,
+      resourceCode: item.resource_codigo,
+      totalQuantity: Number(item.cantidad_total)
     }))
   };
 };
@@ -234,7 +234,7 @@ const exportSummaryPdf = async (req, res) => {
   doc.fontSize(12).text('Reporte general de operaciones', { align: 'left' });
   doc.moveDown(1);
 
-  doc.fontSize(10).text(`Generado por: ${req.user.name} (${req.user.role})`);
+  doc.fontSize(10).text(`Generado por: ${req.user.nombre} (${req.user.role})`);
   doc.text(`Fecha de generacion: ${new Date().toLocaleString()}`);
   doc.text(`Rango: ${summary.period.from || 'sin inicio'} - ${summary.period.to || 'sin termino'}`);
   doc.moveDown(1);
@@ -262,4 +262,9 @@ module.exports = {
   getSummaryReport,
   exportSummaryPdf
 };
+
+
+
+
+
 

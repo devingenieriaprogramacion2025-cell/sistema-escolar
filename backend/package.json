@@ -6,13 +6,11 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "seed": "node scripts/init-sqlserver.js",
     "db:init:sqlserver": "node scripts/init-sqlserver.js"
   },
   "keywords": [
     "node",
     "express",
-    "mongodb",
     "sqlserver",
     "school"
   ],
@@ -24,8 +22,6 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongodb": "^7.1.1",
-    "mongoose": "^9.4.1",
     "mssql": "^12.5.0",
     "pdfkit": "^0.18.0"
   },

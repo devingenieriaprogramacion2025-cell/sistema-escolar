@@ -7,24 +7,31 @@ const { query, one, scalar } = require('../services/sql.service');
 const mapResourceRow = (row) => ({
   _id: String(row.id),
   id: String(row.id),
-  code: row.code,
-  name: row.name,
-  description: row.description,
+  code: row.codigo,
+  codigo: row.codigo,
+  name: row.nombre,
+  nombre: row.nombre,
+  description: row.descripcion,
+  descripcion: row.descripcion,
   area: row.area,
-  location: row.location,
-  unit: row.unit_name,
-  totalQuantity: row.total_quantity,
-  availableQuantity: row.available_quantity,
-  minStock: row.min_stock,
-  price: Number(row.price),
-  status: row.status,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  category: row.category_id
+  location: row.ubicacion,
+  ubicacion: row.ubicacion,
+  unit: row.nombre_unidad,
+  totalQuantity: row.cantidad_total,
+  availableQuantity: row.cantidad_disponible,
+  minStock: row.stock_minimo,
+  price: Number(row.precio),
+  precio: Number(row.precio),
+  status: row.estado,
+  estado: row.estado,
+  createdAt: row.creado_en,
+  updatedAt: row.actualizado_en,
+  category: row.categoria_id
     ? {
-        _id: String(row.category_id),
-        id: String(row.category_id),
-        name: row.category_name
+        _id: String(row.categoria_id),
+        id: String(row.categoria_id),
+        name: row.categoria_nombre,
+        nombre: row.categoria_nombre
       }
     : null
 });
@@ -47,13 +54,14 @@ const listResources = async (req, res) => {
   const filters = [...roleScope.filters];
   const params = { ...roleScope.params, skip, limit };
 
-  if (req.query.status) {
-    filters.push('UPPER(r.status) = @status');
-    params.status = req.query.status.toUpperCase();
+  const estadoFiltro = req.query.estado || req.query.status;
+  if (estadoFiltro) {
+    filters.push('UPPER(r.estado) = @estado');
+    params.estado = String(estadoFiltro).toUpperCase();
   }
 
   if (req.query.categoryId && isValidObjectId(req.query.categoryId)) {
-    filters.push('r.category_id = @categoryId');
+    filters.push('r.categoria_id = @categoryId');
     params.categoryId = Number(req.query.categoryId);
   }
 
@@ -63,7 +71,7 @@ const listResources = async (req, res) => {
   }
 
   if (req.query.q) {
-    filters.push('(r.code LIKE @search OR r.name LIKE @search OR r.location LIKE @search)');
+    filters.push('(r.codigo LIKE @search OR r.nombre LIKE @search OR r.ubicacion LIKE @search)');
     params.search = `%${req.query.q}%`;
   }
 
@@ -72,13 +80,13 @@ const listResources = async (req, res) => {
   const items = await query(
     `
     SELECT
-      r.id, r.code, r.name, r.description, r.area, r.location, r.unit_name, r.total_quantity,
-      r.available_quantity, r.min_stock, r.price, r.status, r.created_at, r.updated_at,
-      c.id AS category_id, c.name AS category_name
-    FROM dbo.resources r
-    INNER JOIN dbo.categories c ON c.id = r.category_id
+      r.id, r.codigo, r.nombre, r.descripcion, r.area, r.ubicacion, r.nombre_unidad, r.cantidad_total,
+      r.cantidad_disponible, r.stock_minimo, r.precio, r.estado, r.creado_en, r.actualizado_en,
+      c.id AS categoria_id, c.nombre AS categoria_nombre
+    FROM dbo.recursos r
+    INNER JOIN dbo.categorias c ON c.id = r.categoria_id
     ${whereClause}
-    ORDER BY r.created_at DESC
+    ORDER BY r.creado_en DESC
     OFFSET @skip ROWS FETCH NEXT @limit ROWS ONLY;
     `,
     params
@@ -87,8 +95,8 @@ const listResources = async (req, res) => {
   const total = await scalar(
     `
     SELECT COUNT(1) AS total
-    FROM dbo.resources r
-    INNER JOIN dbo.categories c ON c.id = r.category_id
+    FROM dbo.recursos r
+    INNER JOIN dbo.categorias c ON c.id = r.categoria_id
     ${whereClause};
     `,
     params
@@ -107,80 +115,95 @@ const listResources = async (req, res) => {
 };
 
 const createResource = async (req, res, next) => {
-  const required = requireFields(req.body, ['code', 'name', 'categoryId', 'totalQuantity', 'area']);
+  const payload = {
+    codigo: req.body.codigo ?? req.body.code,
+    nombre: req.body.nombre ?? req.body.name,
+    categoryId: req.body.categoryId,
+    totalQuantity: req.body.totalQuantity,
+    availableQuantity: req.body.availableQuantity,
+    minStock: req.body.minStock,
+    precio: req.body.precio ?? req.body.price,
+    descripcion: req.body.descripcion ?? req.body.description,
+    ubicacion: req.body.ubicacion ?? req.body.location,
+    area: req.body.area,
+    unit: req.body.unit,
+    estado: req.body.estado ?? req.body.status
+  };
+
+  const required = requireFields(payload, ['codigo', 'nombre', 'categoryId', 'totalQuantity', 'area']);
   if (!required.valid) {
     return next(new ApiError(400, `Campos requeridos: ${required.missing.join(', ')}`));
   }
 
-  if (!isValidObjectId(req.body.categoryId)) {
+  if (!isValidObjectId(payload.categoryId)) {
     return next(new ApiError(400, 'categoryId invalido'));
   }
 
   const category = await one(
-    'SELECT id, status FROM dbo.categories WHERE id = @id;',
-    { id: Number(req.body.categoryId) }
+    'SELECT id, estado FROM dbo.categorias WHERE id = @id;',
+    { id: Number(payload.categoryId) }
   );
 
-  if (!category || category.status !== 'ACTIVE') {
+  if (!category || category.estado !== 'ACTIVE') {
     return next(new ApiError(400, 'Categoria invalida'));
   }
 
-  if (req.user.role === ROLES.ENCARGADO && req.user.area !== req.body.area) {
+  if (req.user.role === ROLES.ENCARGADO && req.user.area !== payload.area) {
     return next(new ApiError(403, 'Solo puedes crear recursos de tu area'));
   }
 
-  const exists = await one('SELECT id FROM dbo.resources WHERE code = @code;', { code: req.body.code });
+  const exists = await one('SELECT id FROM dbo.recursos WHERE codigo = @codigo;', { codigo: payload.codigo });
   if (exists) {
     return next(new ApiError(409, 'Ya existe un recurso con ese codigo'));
   }
 
-  const totalQuantity = Number(req.body.totalQuantity);
+  const totalQuantity = Number(payload.totalQuantity);
   const availableQuantity =
-    req.body.availableQuantity !== undefined ? Number(req.body.availableQuantity) : totalQuantity;
+    payload.availableQuantity !== undefined ? Number(payload.availableQuantity) : totalQuantity;
 
   await query(
     `
-    INSERT INTO dbo.resources
-    (code, name, category_id, description, area, location, unit_name, total_quantity, available_quantity, min_stock, price, status, created_at, updated_at)
+    INSERT INTO dbo.recursos
+    (codigo, nombre, categoria_id, descripcion, area, ubicacion, nombre_unidad, cantidad_total, cantidad_disponible, stock_minimo, precio, estado, creado_en, actualizado_en)
     VALUES
-    (@code, @name, @categoryId, @description, @area, @location, @unit, @totalQuantity, @availableQuantity, @minStock, @price, @status, SYSUTCDATETIME(), SYSUTCDATETIME());
+    (@codigo, @nombre, @categoryId, @descripcion, @area, @ubicacion, @unit, @totalQuantity, @availableQuantity, @minStock, @precio, @estado, SYSUTCDATETIME(), SYSUTCDATETIME());
     `,
     {
-      code: req.body.code,
-      name: req.body.name,
-      categoryId: Number(req.body.categoryId),
-      description: req.body.description || '',
-      area: req.body.area,
-      location: req.body.location || '',
-      unit: req.body.unit || 'unidad',
+      codigo: payload.codigo,
+      nombre: payload.nombre,
+      categoryId: Number(payload.categoryId),
+      descripcion: payload.descripcion || '',
+      area: payload.area,
+      ubicacion: payload.ubicacion || '',
+      unit: payload.unit || 'unidad',
       totalQuantity,
       availableQuantity,
-      minStock: Number(req.body.minStock || 0),
-      price: Number(req.body.price || 0),
-      status: req.body.status || 'ACTIVE'
+      minStock: Number(payload.minStock || 0),
+      precio: Number(payload.precio || 0),
+      estado: payload.estado || 'ACTIVE'
     }
   );
 
   const created = await one(
     `
     SELECT TOP 1
-      r.id, r.code, r.name, r.description, r.area, r.location, r.unit_name, r.total_quantity,
-      r.available_quantity, r.min_stock, r.price, r.status, r.created_at, r.updated_at,
-      c.id AS category_id, c.name AS category_name
-    FROM dbo.resources r
-    INNER JOIN dbo.categories c ON c.id = r.category_id
-    WHERE r.code = @code
+      r.id, r.codigo, r.nombre, r.descripcion, r.area, r.ubicacion, r.nombre_unidad, r.cantidad_total,
+      r.cantidad_disponible, r.stock_minimo, r.precio, r.estado, r.creado_en, r.actualizado_en,
+      c.id AS categoria_id, c.nombre AS categoria_nombre
+    FROM dbo.recursos r
+    INNER JOIN dbo.categorias c ON c.id = r.categoria_id
+    WHERE r.codigo = @codigo
     ORDER BY r.id DESC;
     `,
-    { code: req.body.code }
+    { codigo: payload.codigo }
   );
 
   await audit({
     req,
-    action: 'CREAR_RECURSO',
-    module: 'RECURSOS',
+    accion: 'CREAR_RECURSO',
+    modulo: 'RECURSOS',
     entityId: String(created.id),
-    details: { code: created.code, area: created.area }
+    detalles: { codigo: created.codigo, area: created.area }
   });
 
   res.status(201).json({ success: true, data: mapResourceRow(created) });
@@ -195,8 +218,8 @@ const updateResource = async (req, res, next) => {
 
   const resource = await one(
     `
-    SELECT id, code, area
-    FROM dbo.resources
+    SELECT id, codigo, area
+    FROM dbo.recursos
     WHERE id = @id;
     `,
     { id: resourceId }
@@ -210,22 +233,37 @@ const updateResource = async (req, res, next) => {
     return next(new ApiError(403, 'Solo puedes editar recursos de tu area'));
   }
 
+  const payload = {
+    codigo: req.body.codigo ?? req.body.code,
+    nombre: req.body.nombre ?? req.body.name,
+    categoryId: req.body.categoryId,
+    descripcion: req.body.descripcion ?? req.body.description,
+    area: req.body.area,
+    ubicacion: req.body.ubicacion ?? req.body.location,
+    unit: req.body.unit,
+    totalQuantity: req.body.totalQuantity,
+    availableQuantity: req.body.availableQuantity,
+    minStock: req.body.minStock,
+    precio: req.body.precio ?? req.body.price,
+    estado: req.body.estado ?? req.body.status
+  };
+
   let categoryId = null;
-  if (req.body.categoryId) {
-    if (!isValidObjectId(req.body.categoryId)) {
+  if (payload.categoryId) {
+    if (!isValidObjectId(payload.categoryId)) {
       return next(new ApiError(400, 'categoryId invalido'));
     }
-    const category = await one('SELECT id FROM dbo.categories WHERE id = @id;', { id: Number(req.body.categoryId) });
+    const category = await one('SELECT id FROM dbo.categorias WHERE id = @id;', { id: Number(payload.categoryId) });
     if (!category) {
       return next(new ApiError(400, 'Categoria no encontrada'));
     }
-    categoryId = Number(req.body.categoryId);
+    categoryId = Number(payload.categoryId);
   }
 
-  if (req.body.code !== undefined) {
+  if (payload.codigo !== undefined) {
     const duplicated = await one(
-      'SELECT id FROM dbo.resources WHERE code = @code AND id <> @id;',
-      { code: req.body.code, id: resourceId }
+      'SELECT id FROM dbo.recursos WHERE codigo = @codigo AND id <> @id;',
+      { codigo: payload.codigo, id: resourceId }
     );
     if (duplicated) {
       return next(new ApiError(409, 'Ya existe un recurso con ese codigo'));
@@ -239,36 +277,36 @@ const updateResource = async (req, res, next) => {
     params[key] = value;
   };
 
-  if (req.body.code !== undefined) assign('code', 'code', req.body.code);
-  if (req.body.name !== undefined) assign('name', 'name', req.body.name);
-  if (categoryId !== null) assign('category_id', 'categoryId', categoryId);
-  if (req.body.description !== undefined) assign('description', 'description', req.body.description);
-  if (req.body.area !== undefined) assign('area', 'area', req.body.area);
-  if (req.body.location !== undefined) assign('location', 'location', req.body.location);
-  if (req.body.unit !== undefined) assign('unit_name', 'unit', req.body.unit);
-  if (req.body.totalQuantity !== undefined) assign('total_quantity', 'totalQuantity', Number(req.body.totalQuantity));
-  if (req.body.availableQuantity !== undefined) assign('available_quantity', 'availableQuantity', Number(req.body.availableQuantity));
-  if (req.body.minStock !== undefined) assign('min_stock', 'minStock', Number(req.body.minStock));
-  if (req.body.price !== undefined) assign('price', 'price', Number(req.body.price));
-  if (req.body.status !== undefined) assign('status', 'status', req.body.status);
+  if (payload.codigo !== undefined) assign('codigo', 'codigo', payload.codigo);
+  if (payload.nombre !== undefined) assign('nombre', 'nombre', payload.nombre);
+  if (categoryId !== null) assign('categoria_id', 'categoryId', categoryId);
+  if (payload.descripcion !== undefined) assign('descripcion', 'descripcion', payload.descripcion);
+  if (payload.area !== undefined) assign('area', 'area', payload.area);
+  if (payload.ubicacion !== undefined) assign('ubicacion', 'ubicacion', payload.ubicacion);
+  if (payload.unit !== undefined) assign('nombre_unidad', 'unit', payload.unit);
+  if (payload.totalQuantity !== undefined) assign('cantidad_total', 'totalQuantity', Number(payload.totalQuantity));
+  if (payload.availableQuantity !== undefined) assign('cantidad_disponible', 'availableQuantity', Number(payload.availableQuantity));
+  if (payload.minStock !== undefined) assign('stock_minimo', 'minStock', Number(payload.minStock));
+  if (payload.precio !== undefined) assign('precio', 'precio', Number(payload.precio));
+  if (payload.estado !== undefined) assign('estado', 'estado', payload.estado);
 
-  if (req.user.role === ROLES.ENCARGADO && req.body.area !== undefined && req.body.area !== req.user.area) {
+  if (req.user.role === ROLES.ENCARGADO && payload.area !== undefined && payload.area !== req.user.area) {
     return next(new ApiError(403, 'No puedes mover recursos a otra area'));
   }
 
   if (updates.length > 0) {
-    updates.push('updated_at = SYSUTCDATETIME()');
-    await query(`UPDATE dbo.resources SET ${updates.join(', ')} WHERE id = @id;`, params);
+    updates.push('actualizado_en = SYSUTCDATETIME()');
+    await query(`UPDATE dbo.recursos SET ${updates.join(', ')} WHERE id = @id;`, params);
   }
 
   const updated = await one(
     `
     SELECT
-      r.id, r.code, r.name, r.description, r.area, r.location, r.unit_name, r.total_quantity,
-      r.available_quantity, r.min_stock, r.price, r.status, r.created_at, r.updated_at,
-      c.id AS category_id, c.name AS category_name
-    FROM dbo.resources r
-    INNER JOIN dbo.categories c ON c.id = r.category_id
+      r.id, r.codigo, r.nombre, r.descripcion, r.area, r.ubicacion, r.nombre_unidad, r.cantidad_total,
+      r.cantidad_disponible, r.stock_minimo, r.precio, r.estado, r.creado_en, r.actualizado_en,
+      c.id AS categoria_id, c.nombre AS categoria_nombre
+    FROM dbo.recursos r
+    INNER JOIN dbo.categorias c ON c.id = r.categoria_id
     WHERE r.id = @id;
     `,
     { id: resourceId }
@@ -276,10 +314,10 @@ const updateResource = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'ACTUALIZAR_RECURSO',
-    module: 'RECURSOS',
+    accion: 'ACTUALIZAR_RECURSO',
+    modulo: 'RECURSOS',
     entityId: String(resourceId),
-    details: { fields: Object.keys(req.body) }
+    detalles: { fields: Object.keys(req.body) }
   });
 
   res.json({ success: true, data: mapResourceRow(updated) });
@@ -291,7 +329,7 @@ const deleteResource = async (req, res, next) => {
   }
 
   const resourceId = Number(req.params.id);
-  const resource = await one('SELECT id, area FROM dbo.resources WHERE id = @id;', { id: resourceId });
+  const resource = await one('SELECT id, area FROM dbo.recursos WHERE id = @id;', { id: resourceId });
   if (!resource) {
     return next(new ApiError(404, 'Recurso no encontrado'));
   }
@@ -302,8 +340,8 @@ const deleteResource = async (req, res, next) => {
 
   await query(
     `
-    UPDATE dbo.resources
-    SET status = 'INACTIVE', updated_at = SYSUTCDATETIME()
+    UPDATE dbo.recursos
+    SET estado = 'INACTIVE', actualizado_en = SYSUTCDATETIME()
     WHERE id = @id;
     `,
     { id: resourceId }
@@ -311,10 +349,10 @@ const deleteResource = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'DESACTIVAR_RECURSO',
-    module: 'RECURSOS',
+    accion: 'DESACTIVAR_RECURSO',
+    modulo: 'RECURSOS',
     entityId: String(resourceId),
-    details: { mode: 'soft-delete' }
+    detalles: { mode: 'soft-delete' }
   });
 
   res.json({ success: true, message: 'Recurso desactivado' });
@@ -323,18 +361,19 @@ const deleteResource = async (req, res, next) => {
 const listCategories = async (req, res) => {
   const filters = [];
   const params = {};
-  if (req.query.status) {
-    filters.push('UPPER(status) = @status');
-    params.status = req.query.status.toUpperCase();
+  const estadoFiltro = req.query.estado || req.query.status;
+  if (estadoFiltro) {
+    filters.push('UPPER(estado) = @estado');
+    params.estado = String(estadoFiltro).toUpperCase();
   }
 
   const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
   const categories = await query(
     `
-    SELECT id, name, description, status, created_at, updated_at
-    FROM dbo.categories
+    SELECT id, nombre, descripcion, estado, creado_en, actualizado_en
+    FROM dbo.categorias
     ${whereClause}
-    ORDER BY name ASC;
+    ORDER BY nombre ASC;
     `,
     params
   );
@@ -344,54 +383,63 @@ const listCategories = async (req, res) => {
     data: categories.map((row) => ({
       _id: String(row.id),
       id: String(row.id),
-      name: row.name,
-      description: row.description,
-      status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      name: row.nombre,
+      nombre: row.nombre,
+      description: row.descripcion,
+      descripcion: row.descripcion,
+      status: row.estado,
+      estado: row.estado,
+      createdAt: row.creado_en,
+      updatedAt: row.actualizado_en
     }))
   });
 };
 
 const createCategory = async (req, res, next) => {
-  const required = requireFields(req.body, ['name']);
+  const payload = {
+    nombre: req.body.nombre ?? req.body.name,
+    descripcion: req.body.descripcion ?? req.body.description,
+    estado: req.body.estado ?? req.body.status
+  };
+
+  const required = requireFields(payload, ['nombre']);
   if (!required.valid) {
     return next(new ApiError(400, 'Nombre de categoria requerido'));
   }
 
-  const exists = await one('SELECT id FROM dbo.categories WHERE name = @name;', { name: req.body.name });
+  const exists = await one('SELECT id FROM dbo.categorias WHERE nombre = @nombre;', { nombre: payload.nombre });
   if (exists) {
     return next(new ApiError(409, 'Ya existe una categoria con ese nombre'));
   }
 
   await query(
     `
-    INSERT INTO dbo.categories (name, description, status, created_at, updated_at)
-    VALUES (@name, @description, @status, SYSUTCDATETIME(), SYSUTCDATETIME());
+    INSERT INTO dbo.categorias (nombre, descripcion, estado, creado_en, actualizado_en)
+    VALUES (@nombre, @descripcion, @estado, SYSUTCDATETIME(), SYSUTCDATETIME());
     `,
     {
-      name: req.body.name,
-      description: req.body.description || '',
-      status: req.body.status || 'ACTIVE'
+      nombre: payload.nombre,
+      descripcion: payload.descripcion || '',
+      estado: payload.estado || 'ACTIVE'
     }
   );
 
   const category = await one(
     `
-    SELECT TOP 1 id, name, description, status, created_at, updated_at
-    FROM dbo.categories
-    WHERE name = @name
+    SELECT TOP 1 id, nombre, descripcion, estado, creado_en, actualizado_en
+    FROM dbo.categorias
+    WHERE nombre = @nombre
     ORDER BY id DESC;
     `,
-    { name: req.body.name }
+    { nombre: payload.nombre }
   );
 
   await audit({
     req,
-    action: 'CREAR_CATEGORIA',
-    module: 'RECURSOS',
+    accion: 'CREAR_CATEGORIA',
+    modulo: 'RECURSOS',
     entityId: String(category.id),
-    details: { name: category.name }
+    detalles: { nombre: category.nombre }
   });
 
   res.status(201).json({
@@ -399,11 +447,14 @@ const createCategory = async (req, res, next) => {
     data: {
       _id: String(category.id),
       id: String(category.id),
-      name: category.name,
-      description: category.description,
-      status: category.status,
-      createdAt: category.created_at,
-      updatedAt: category.updated_at
+      name: category.nombre,
+      nombre: category.nombre,
+      description: category.descripcion,
+      descripcion: category.descripcion,
+      status: category.estado,
+      estado: category.estado,
+      createdAt: category.creado_en,
+      updatedAt: category.actualizado_en
     }
   });
 };
@@ -414,15 +465,21 @@ const updateCategory = async (req, res, next) => {
   }
 
   const categoryId = Number(req.params.id);
-  const current = await one('SELECT id FROM dbo.categories WHERE id = @id;', { id: categoryId });
+  const current = await one('SELECT id FROM dbo.categorias WHERE id = @id;', { id: categoryId });
   if (!current) {
     return next(new ApiError(404, 'Categoria no encontrada'));
   }
 
-  if (req.body.name !== undefined) {
+  const payload = {
+    nombre: req.body.nombre ?? req.body.name,
+    descripcion: req.body.descripcion ?? req.body.description,
+    estado: req.body.estado ?? req.body.status
+  };
+
+  if (payload.nombre !== undefined) {
     const duplicated = await one(
-      'SELECT id FROM dbo.categories WHERE name = @name AND id <> @id;',
-      { name: req.body.name, id: categoryId }
+      'SELECT id FROM dbo.categorias WHERE nombre = @nombre AND id <> @id;',
+      { nombre: payload.nombre, id: categoryId }
     );
     if (duplicated) {
       return next(new ApiError(409, 'Ya existe una categoria con ese nombre'));
@@ -436,19 +493,19 @@ const updateCategory = async (req, res, next) => {
     params[key] = value;
   };
 
-  if (req.body.name !== undefined) assign('name', 'name', req.body.name);
-  if (req.body.description !== undefined) assign('description', 'description', req.body.description);
-  if (req.body.status !== undefined) assign('status', 'status', req.body.status);
+  if (payload.nombre !== undefined) assign('nombre', 'nombre', payload.nombre);
+  if (payload.descripcion !== undefined) assign('descripcion', 'descripcion', payload.descripcion);
+  if (payload.estado !== undefined) assign('estado', 'estado', payload.estado);
 
   if (updates.length > 0) {
-    updates.push('updated_at = SYSUTCDATETIME()');
-    await query(`UPDATE dbo.categories SET ${updates.join(', ')} WHERE id = @id;`, params);
+    updates.push('actualizado_en = SYSUTCDATETIME()');
+    await query(`UPDATE dbo.categorias SET ${updates.join(', ')} WHERE id = @id;`, params);
   }
 
   const category = await one(
     `
-    SELECT id, name, description, status, created_at, updated_at
-    FROM dbo.categories
+    SELECT id, nombre, descripcion, estado, creado_en, actualizado_en
+    FROM dbo.categorias
     WHERE id = @id;
     `,
     { id: categoryId }
@@ -456,10 +513,10 @@ const updateCategory = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'ACTUALIZAR_CATEGORIA',
-    module: 'RECURSOS',
+    accion: 'ACTUALIZAR_CATEGORIA',
+    modulo: 'RECURSOS',
     entityId: String(categoryId),
-    details: { fields: Object.keys(req.body) }
+    detalles: { fields: Object.keys(req.body) }
   });
 
   res.json({
@@ -467,11 +524,14 @@ const updateCategory = async (req, res, next) => {
     data: {
       _id: String(category.id),
       id: String(category.id),
-      name: category.name,
-      description: category.description,
-      status: category.status,
-      createdAt: category.created_at,
-      updatedAt: category.updated_at
+      name: category.nombre,
+      nombre: category.nombre,
+      description: category.descripcion,
+      descripcion: category.descripcion,
+      status: category.estado,
+      estado: category.estado,
+      createdAt: category.creado_en,
+      updatedAt: category.actualizado_en
     }
   });
 };
@@ -485,4 +545,9 @@ module.exports = {
   createCategory,
   updateCategory
 };
+
+
+
+
+
 

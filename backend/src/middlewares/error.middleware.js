@@ -5,31 +5,31 @@ const notFoundMiddleware = (req, res, next) => {
 };
 
 const errorMiddleware = (err, req, res, next) => {
-  let statusCode = err.statusCode || 500;
+  let estadoCode = err.estadoCode || 500;
   let message = err.message || 'Error interno del servidor';
-  let details = err.details || null;
+  let detalles = err.detalles || null;
 
-  if (err.name === 'ValidationError') {
-    statusCode = 400;
+  if (err.nombre === 'ValidationError') {
+    estadoCode = 400;
     message = 'Error de validacion';
-    details = Object.values(err.errors).map((item) => item.message);
+    detalles = Object.values(err.errors).map((item) => item.message);
   }
 
-  if (err.code === 11000) {
-    statusCode = 409;
+  if (err.codigo === 11000) {
+    estadoCode = 409;
     const duplicatedField = Object.keys(err.keyValue || {})[0] || 'campo unico';
     message = `Valor duplicado en ${duplicatedField}`;
   }
 
-  if (err.name === 'CastError') {
-    statusCode = 400;
+  if (err.nombre === 'CastError') {
+    estadoCode = 400;
     message = `Identificador invalido: ${err.value}`;
   }
 
-  res.status(statusCode).json({
+  res.status(estadoCode).json({
     success: false,
     message,
-    details
+    detalles
   });
 };
 
@@ -37,3 +37,8 @@ module.exports = {
   notFoundMiddleware,
   errorMiddleware
 };
+
+
+
+
+

@@ -13,3 +13,8 @@ router.get('/summary', authorizeRoles(ROLES.ADMIN, ROLES.DIRECTIVO, ROLES.INSPEC
 router.get('/export', authorizeRoles(ROLES.ADMIN, ROLES.DIRECTIVO, ROLES.INSPECTORIA), asyncHandler(reportsController.exportSummaryPdf));
 
 module.exports = router;
+
+
+
+
+

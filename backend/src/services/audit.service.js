@@ -1,23 +1,23 @@
-const { query } = require('./sql.service');
+﻿const { query } = require('./sql.service');
 
-const audit = async ({ req, action, module, entityId = null, details = {}, status = 'SUCCESS' }) => {
+const audit = async ({ req, accion, modulo, entityId = null, detalles = {}, estado = 'SUCCESS' }) => {
   try {
     await query(
       `
-      INSERT INTO dbo.audit_logs
-      (user_id, user_email, role, action, module, entity_id, details, status, created_at, updated_at)
+      INSERT INTO dbo.bitacora_auditoria
+      (usuario_id, correo_usuario, rol, accion, modulo, entidad_id, detalles, estado, creado_en, actualizado_en)
       VALUES
-      (@userId, @userEmail, @role, @action, @module, @entityId, @details, @status, SYSUTCDATETIME(), SYSUTCDATETIME());
+      (@userId, @userEmail, @rol, @accion, @modulo, @entityId, @detalles, @estado, SYSUTCDATETIME(), SYSUTCDATETIME());
       `,
       {
         userId: req?.user?.id ? Number(req.user.id) : null,
         userEmail: req?.user?.email || 'system',
-        role: req?.user?.role || 'SYSTEM',
-        action,
-        module,
+        rol: req?.user?.role || 'SYSTEM',
+        accion,
+        modulo,
         entityId: entityId ? String(entityId) : null,
-        details: JSON.stringify(details || {}),
-        status
+        detalles: JSON.stringify(detalles || {}),
+        estado
       }
     );
   } catch (error) {
@@ -28,3 +28,8 @@ const audit = async ({ req, action, module, entityId = null, details = {}, statu
 module.exports = {
   audit
 };
+
+
+
+
+

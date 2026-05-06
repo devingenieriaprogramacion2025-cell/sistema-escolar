@@ -14,37 +14,43 @@ const normalizeText = (value = '') =>
 const mapReservationRow = (row) => ({
   _id: String(row.id),
   id: String(row.id),
-  purpose: row.purpose,
-  startDate: row.start_date,
-  endDate: row.end_date,
-  reviewComments: row.review_comments,
-  status: row.status,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  requester: row.requester_id
+  purpose: row.proposito,
+  proposito: row.proposito,
+  startDate: row.fecha_inicio,
+  endDate: row.fecha_fin,
+  reviewComments: row.comentarios_revision,
+  status: row.estado,
+  estado: row.estado,
+  createdAt: row.creado_en,
+  updatedAt: row.actualizado_en,
+  requester: row.solicitante_id
     ? {
-        _id: String(row.requester_id),
-        id: String(row.requester_id),
-        name: row.requester_name,
+        _id: String(row.solicitante_id),
+        id: String(row.solicitante_id),
+        name: row.requester_nombre,
+        nombre: row.requester_nombre,
         email: row.requester_email,
         area: row.requester_area
       }
     : null,
-  resource: row.resource_id
+  resource: row.recurso_id
     ? {
-        _id: String(row.resource_id),
-        id: String(row.resource_id),
-        name: row.resource_name,
-        code: row.resource_code,
+        _id: String(row.recurso_id),
+        id: String(row.recurso_id),
+        name: row.resource_nombre,
+        nombre: row.resource_nombre,
+        code: row.resource_codigo,
+        codigo: row.resource_codigo,
         area: row.resource_area
       }
     : null,
-  reviewedBy: row.reviewed_by
+  reviewedBy: row.revisado_por
     ? {
-        _id: String(row.reviewed_by),
-        id: String(row.reviewed_by),
-        name: row.reviewed_by_name,
-        email: row.reviewed_by_email
+        _id: String(row.revisado_por),
+        id: String(row.revisado_por),
+        name: row.revisado_por_nombre,
+        nombre: row.revisado_por_nombre,
+        email: row.revisado_por_email
       }
     : null
 });
@@ -69,9 +75,9 @@ const listReservations = async (req, res) => {
   const filters = [...scope.filters];
   const params = { ...scope.params, skip, limit };
 
-  if (req.query.status) {
-    filters.push('UPPER(rv.status) = @status');
-    params.status = req.query.status.toUpperCase();
+  if (req.query.estado) {
+    filters.push('UPPER(rv.estado) = @estado');
+    params.estado = req.query.estado.toUpperCase();
   }
 
   const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
@@ -79,17 +85,17 @@ const listReservations = async (req, res) => {
   const items = await query(
     `
     SELECT
-      rv.id, rv.requester_id, rv.resource_id, rv.purpose, rv.start_date, rv.end_date, rv.reviewed_by,
-      rv.review_comments, rv.status, rv.created_at, rv.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      rev_u.name AS reviewed_by_name, rev_u.email AS reviewed_by_email
-    FROM dbo.reservations rv
-    INNER JOIN dbo.users req_u ON req_u.id = rv.requester_id
-    INNER JOIN dbo.resources res ON res.id = rv.resource_id
-    LEFT JOIN dbo.users rev_u ON rev_u.id = rv.reviewed_by
+      rv.id, rv.solicitante_id, rv.recurso_id, rv.proposito, rv.fecha_inicio, rv.fecha_fin, rv.revisado_por,
+      rv.comentarios_revision, rv.estado, rv.creado_en, rv.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      rev_u.nombre AS revisado_por_nombre, rev_u.email AS revisado_por_email
+    FROM dbo.reservas rv
+    INNER JOIN dbo.usuarios req_u ON req_u.id = rv.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
+    LEFT JOIN dbo.usuarios rev_u ON rev_u.id = rv.revisado_por
     ${whereClause}
-    ORDER BY rv.created_at DESC
+    ORDER BY rv.creado_en DESC
     OFFSET @skip ROWS FETCH NEXT @limit ROWS ONLY;
     `,
     params
@@ -98,8 +104,8 @@ const listReservations = async (req, res) => {
   const total = await scalar(
     `
     SELECT COUNT(1) AS total
-    FROM dbo.reservations rv
-    INNER JOIN dbo.resources res ON res.id = rv.resource_id
+    FROM dbo.reservas rv
+    INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
     ${whereClause};
     `,
     params
@@ -118,9 +124,13 @@ const listReservations = async (req, res) => {
 };
 
 const createReservation = async (req, res, next) => {
-  const { resourceId, purpose, startDate, endDate, requesterId } = req.body;
-  if (!resourceId || !purpose || !startDate || !endDate) {
-    return next(new ApiError(400, 'resourceId, purpose, startDate y endDate son requeridos'));
+  const resourceId = req.body.resourceId || req.body.recurso_id;
+  const proposito = req.body.proposito || req.body.purpose;
+  const startDate = req.body.startDate || req.body.fecha_inicio;
+  const endDate = req.body.endDate || req.body.fecha_fin;
+  const requesterId = req.body.requesterId || req.body.solicitante_id;
+  if (!resourceId || !proposito || !startDate || !endDate) {
+    return next(new ApiError(400, 'resourceId, proposito, startDate y endDate son requeridos'));
   }
 
   if (!isValidObjectId(resourceId)) {
@@ -128,10 +138,10 @@ const createReservation = async (req, res, next) => {
   }
 
   const resource = await one(
-    'SELECT id, code, status FROM dbo.resources WHERE id = @id;',
+    'SELECT id, codigo, estado FROM dbo.recursos WHERE id = @id;',
     { id: Number(resourceId) }
   );
-  if (!resource || resource.status !== 'ACTIVE') {
+  if (!resource || resource.estado !== 'ACTIVE') {
     return next(new ApiError(400, 'Recurso no valido'));
   }
 
@@ -147,24 +157,24 @@ const createReservation = async (req, res, next) => {
   }
 
   const requester = await one(
-    'SELECT id, status FROM dbo.users WHERE id = @id;',
+    'SELECT id, estado FROM dbo.usuarios WHERE id = @id;',
     { id: Number(finalRequesterId) }
   );
-  if (!requester || requester.status !== 'ACTIVE') {
+  if (!requester || requester.estado !== 'ACTIVE') {
     return next(new ApiError(400, 'Solicitante no valido'));
   }
 
   await query(
     `
-    INSERT INTO dbo.reservations
-    (requester_id, resource_id, purpose, start_date, end_date, reviewed_by, review_comments, status, created_at, updated_at)
+    INSERT INTO dbo.reservas
+    (solicitante_id, recurso_id, proposito, fecha_inicio, fecha_fin, revisado_por, comentarios_revision, estado, creado_en, actualizado_en)
     VALUES
-    (@requesterId, @resourceId, @purpose, @startDate, @endDate, NULL, '', 'PENDING', SYSUTCDATETIME(), SYSUTCDATETIME());
+    (@requesterId, @resourceId, @proposito, @startDate, @endDate, NULL, '', 'PENDING', SYSUTCDATETIME(), SYSUTCDATETIME());
     `,
     {
       requesterId: Number(finalRequesterId),
       resourceId: Number(resourceId),
-      purpose,
+      proposito,
       startDate: starts,
       endDate: ends
     }
@@ -173,16 +183,16 @@ const createReservation = async (req, res, next) => {
   const created = await one(
     `
     SELECT TOP 1
-      rv.id, rv.requester_id, rv.resource_id, rv.purpose, rv.start_date, rv.end_date, rv.reviewed_by,
-      rv.review_comments, rv.status, rv.created_at, rv.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      rev_u.name AS reviewed_by_name, rev_u.email AS reviewed_by_email
-    FROM dbo.reservations rv
-    INNER JOIN dbo.users req_u ON req_u.id = rv.requester_id
-    INNER JOIN dbo.resources res ON res.id = rv.resource_id
-    LEFT JOIN dbo.users rev_u ON rev_u.id = rv.reviewed_by
-    WHERE rv.requester_id = @requesterId AND rv.resource_id = @resourceId
+      rv.id, rv.solicitante_id, rv.recurso_id, rv.proposito, rv.fecha_inicio, rv.fecha_fin, rv.revisado_por,
+      rv.comentarios_revision, rv.estado, rv.creado_en, rv.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      rev_u.nombre AS revisado_por_nombre, rev_u.email AS revisado_por_email
+    FROM dbo.reservas rv
+    INNER JOIN dbo.usuarios req_u ON req_u.id = rv.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
+    LEFT JOIN dbo.usuarios rev_u ON rev_u.id = rv.revisado_por
+    WHERE rv.solicitante_id = @requesterId AND rv.recurso_id = @resourceId
     ORDER BY rv.id DESC;
     `,
     { requesterId: Number(finalRequesterId), resourceId: Number(resourceId) }
@@ -190,10 +200,10 @@ const createReservation = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'CREAR_RESERVA',
-    module: 'RESERVAS',
+    accion: 'CREAR_RESERVA',
+    modulo: 'RESERVAS',
     entityId: String(created.id),
-    details: { resource: resource.code, period: `${startDate} - ${endDate}` }
+    detalles: { resource: resource.codigo, period: `${startDate} - ${endDate}` }
   });
 
   res.status(201).json({ success: true, data: mapReservationRow(created) });
@@ -204,17 +214,18 @@ const reviewReservation = async (req, res, next) => {
     return next(new ApiError(400, 'Id de reserva invalido'));
   }
 
-  const { status, reviewComments } = req.body;
-  const normalizedStatus = (status || '').toUpperCase();
+  const estado = req.body.estado || req.body.status;
+  const reviewComments = req.body.reviewComments ?? req.body.comentarios_revision;
+  const normalizedStatus = (estado || '').toUpperCase();
   if (!['APPROVED', 'REJECTED'].includes(normalizedStatus)) {
-    return next(new ApiError(400, 'status debe ser APPROVED o REJECTED'));
+    return next(new ApiError(400, 'estado debe ser APPROVED o REJECTED'));
   }
 
   const reservationId = Number(req.params.id);
   const reservation = await one(
     `
-    SELECT id, resource_id, status, start_date, end_date
-    FROM dbo.reservations
+    SELECT id, recurso_id, estado, fecha_inicio, fecha_fin
+    FROM dbo.reservas
     WHERE id = @id;
     `,
     { id: reservationId }
@@ -224,7 +235,7 @@ const reviewReservation = async (req, res, next) => {
     return next(new ApiError(404, 'Reserva no encontrada'));
   }
 
-  if (reservation.status !== 'PENDING') {
+  if (reservation.estado !== 'PENDING') {
     return next(new ApiError(409, 'Solo reservas pendientes pueden revisarse'));
   }
 
@@ -232,18 +243,18 @@ const reviewReservation = async (req, res, next) => {
     const conflict = await one(
       `
       SELECT TOP 1 id
-      FROM dbo.reservations
+      FROM dbo.reservas
       WHERE id <> @id
-        AND resource_id = @resourceId
-        AND status = 'APPROVED'
-        AND start_date < @endDate
-        AND end_date > @startDate;
+        AND recurso_id = @resourceId
+        AND estado = 'APPROVED'
+        AND fecha_inicio < @endDate
+        AND fecha_fin > @startDate;
       `,
       {
         id: reservationId,
-        resourceId: reservation.resource_id,
-        startDate: reservation.start_date,
-        endDate: reservation.end_date
+        resourceId: reservation.recurso_id,
+        startDate: reservation.fecha_inicio,
+        endDate: reservation.fecha_fin
       }
     );
 
@@ -254,16 +265,16 @@ const reviewReservation = async (req, res, next) => {
 
   await query(
     `
-    UPDATE dbo.reservations
-    SET status = @status,
-        review_comments = @reviewComments,
-        reviewed_by = @reviewedBy,
-        updated_at = SYSUTCDATETIME()
+    UPDATE dbo.reservas
+    SET estado = @estado,
+        comentarios_revision = @reviewComments,
+        revisado_por = @reviewedBy,
+        actualizado_en = SYSUTCDATETIME()
     WHERE id = @id;
     `,
     {
       id: reservationId,
-      status: normalizedStatus,
+      estado: normalizedStatus,
       reviewComments: reviewComments || '',
       reviewedBy: Number(req.user.id)
     }
@@ -272,15 +283,15 @@ const reviewReservation = async (req, res, next) => {
   const updated = await one(
     `
     SELECT
-      rv.id, rv.requester_id, rv.resource_id, rv.purpose, rv.start_date, rv.end_date, rv.reviewed_by,
-      rv.review_comments, rv.status, rv.created_at, rv.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      rev_u.name AS reviewed_by_name, rev_u.email AS reviewed_by_email
-    FROM dbo.reservations rv
-    INNER JOIN dbo.users req_u ON req_u.id = rv.requester_id
-    INNER JOIN dbo.resources res ON res.id = rv.resource_id
-    LEFT JOIN dbo.users rev_u ON rev_u.id = rv.reviewed_by
+      rv.id, rv.solicitante_id, rv.recurso_id, rv.proposito, rv.fecha_inicio, rv.fecha_fin, rv.revisado_por,
+      rv.comentarios_revision, rv.estado, rv.creado_en, rv.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      rev_u.nombre AS revisado_por_nombre, rev_u.email AS revisado_por_email
+    FROM dbo.reservas rv
+    INNER JOIN dbo.usuarios req_u ON req_u.id = rv.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
+    LEFT JOIN dbo.usuarios rev_u ON rev_u.id = rv.revisado_por
     WHERE rv.id = @id;
     `,
     { id: reservationId }
@@ -288,10 +299,10 @@ const reviewReservation = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'REVISAR_RESERVA',
-    module: 'RESERVAS',
+    accion: 'REVISAR_RESERVA',
+    modulo: 'RESERVAS',
     entityId: String(reservationId),
-    details: { status: normalizedStatus }
+    detalles: { estado: normalizedStatus }
   });
 
   res.json({ success: true, data: mapReservationRow(updated) });
@@ -305,8 +316,8 @@ const cancelReservation = async (req, res, next) => {
   const reservationId = Number(req.params.id);
   const reservation = await one(
     `
-    SELECT id, requester_id, reviewed_by, review_comments, status
-    FROM dbo.reservations
+    SELECT id, solicitante_id, revisado_por, comentarios_revision, estado
+    FROM dbo.reservas
     WHERE id = @id;
     `,
     { id: reservationId }
@@ -315,44 +326,44 @@ const cancelReservation = async (req, res, next) => {
     return next(new ApiError(404, 'Reserva no encontrada'));
   }
 
-  const isOwner = String(reservation.requester_id) === req.user.id;
+  const isOwner = String(reservation.solicitante_id) === req.user.id;
   const canCancel = req.user.role === ROLES.ADMIN || req.user.role === ROLES.INSPECTORIA || isOwner;
   if (!canCancel) {
     return next(new ApiError(403, 'No tienes permisos para cancelar esta reserva'));
   }
 
-  if (!['PENDING', 'APPROVED'].includes(reservation.status)) {
+  if (!['PENDING', 'APPROVED'].includes(reservation.estado)) {
     return next(new ApiError(409, 'La reserva no puede cancelarse en su estado actual'));
   }
 
   await query(
     `
-    UPDATE dbo.reservations
-    SET status = 'CANCELLED',
-        review_comments = @reviewComments,
-        reviewed_by = @reviewedBy,
-        updated_at = SYSUTCDATETIME()
+    UPDATE dbo.reservas
+    SET estado = 'CANCELLED',
+        comentarios_revision = @reviewComments,
+        revisado_por = @reviewedBy,
+        actualizado_en = SYSUTCDATETIME()
     WHERE id = @id;
     `,
     {
       id: reservationId,
-      reviewComments: req.body.reason || reservation.review_comments,
-      reviewedBy: reservation.reviewed_by || Number(req.user.id)
+      reviewComments: req.body.reason || reservation.comentarios_revision,
+      reviewedBy: reservation.revisado_por || Number(req.user.id)
     }
   );
 
   const updated = await one(
     `
     SELECT
-      rv.id, rv.requester_id, rv.resource_id, rv.purpose, rv.start_date, rv.end_date, rv.reviewed_by,
-      rv.review_comments, rv.status, rv.created_at, rv.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      rev_u.name AS reviewed_by_name, rev_u.email AS reviewed_by_email
-    FROM dbo.reservations rv
-    INNER JOIN dbo.users req_u ON req_u.id = rv.requester_id
-    INNER JOIN dbo.resources res ON res.id = rv.resource_id
-    LEFT JOIN dbo.users rev_u ON rev_u.id = rv.reviewed_by
+      rv.id, rv.solicitante_id, rv.recurso_id, rv.proposito, rv.fecha_inicio, rv.fecha_fin, rv.revisado_por,
+      rv.comentarios_revision, rv.estado, rv.creado_en, rv.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      rev_u.nombre AS revisado_por_nombre, rev_u.email AS revisado_por_email
+    FROM dbo.reservas rv
+    INNER JOIN dbo.usuarios req_u ON req_u.id = rv.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
+    LEFT JOIN dbo.usuarios rev_u ON rev_u.id = rv.revisado_por
     WHERE rv.id = @id;
     `,
     { id: reservationId }
@@ -360,10 +371,10 @@ const cancelReservation = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'CANCELAR_RESERVA',
-    module: 'RESERVAS',
+    accion: 'CANCELAR_RESERVA',
+    modulo: 'RESERVAS',
     entityId: String(reservationId),
-    details: { by: req.user.role }
+    detalles: { by: req.user.role }
   });
 
   res.json({ success: true, data: mapReservationRow(updated) });
@@ -375,4 +386,9 @@ module.exports = {
   reviewReservation,
   cancelReservation
 };
+
+
+
+
+
 

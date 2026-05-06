@@ -1,8 +1,10 @@
-﻿(function bootstrapConfig() {
+// CONFIGURACION GLOBAL: define modo de API, almacenamiento, roles, accesos y menu.
+(function bootstrapConfig() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   app.config = {
-    apiBaseUrl: localStorage.getItem('school_api_base_url') || 'http://localhost:3000/api',
+    apiMode: 'api',
+    apiBaseUrl: localStorage.getItem('school_api_base_url') || `${window.location.origin}/api`,
     storage: {
       token: 'school_token',
       user: 'school_user'

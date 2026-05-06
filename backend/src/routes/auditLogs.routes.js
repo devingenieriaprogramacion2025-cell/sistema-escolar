@@ -10,3 +10,8 @@ const router = express.Router();
 router.get('/', authMiddleware, authorizeRoles(ROLES.ADMIN), asyncHandler(auditLogsController.listAuditLogs));
 
 module.exports = router;
+
+
+
+
+

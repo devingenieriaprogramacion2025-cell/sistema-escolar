@@ -16,3 +16,8 @@ router.patch('/:id/deactivate', authorizeRoles(ROLES.ENCARGADO), asyncHandler(lo
 router.patch('/:id/return', authorizeRoles(ROLES.ADMIN, ROLES.INSPECTORIA), asyncHandler(loansController.returnLoan));
 
 module.exports = router;
+
+
+
+
+

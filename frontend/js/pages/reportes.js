@@ -1,4 +1,5 @@
-﻿(function reportsPage() {
+﻿// PAGINA REPORTES: resumen estadistico, exportacion y vista de auditoria.
+(function reportsPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const loadSummary = async () => {
@@ -72,9 +73,9 @@
           <tr>
             <td>${app.ui.formatDateTime(item.createdAt)}</td>
             <td>${item.userEmail}</td>
-            <td>${item.module}</td>
-            <td>${item.action}</td>
-            <td>${app.ui.badge(item.status)}</td>
+            <td>${item.module || item.modulo || '-'}</td>
+            <td>${item.action || item.accion || '-'}</td>
+            <td>${app.ui.badge(item.status || item.estado || 'N/A')}</td>
           </tr>
         `
       )
@@ -114,3 +115,4 @@
     }
   });
 })();
+

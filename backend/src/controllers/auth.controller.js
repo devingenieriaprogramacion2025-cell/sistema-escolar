@@ -10,31 +10,33 @@ const signToken = (user) =>
       id: String(user.id),
       email: user.email,
       role: user.role,
-      name: user.name
+      name: user.nombre,
+      nombre: user.nombre
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
 
 const login = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, contrasena, password } = req.body;
+  const plainPassword = contrasena ?? password;
 
-  if (!email || !password) {
-    return next(new ApiError(400, 'Correo y password son requeridos'));
+  if (!email || !plainPassword) {
+    return next(new ApiError(400, 'Correo y contrasena son requeridos'));
   }
 
   const user = await one(
     `
     SELECT
       u.id,
-      u.name,
+      u.nombre,
       u.email,
-      u.password,
+      u.contrasena,
       u.area,
-      u.status,
-      r.name AS role
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.estado,
+      r.nombre AS role
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE u.email = @email;
     `,
     { email: email.toLowerCase().trim() }
@@ -44,11 +46,11 @@ const login = async (req, res, next) => {
     return next(new ApiError(401, 'Credenciales invalidas'));
   }
 
-  if (user.status !== 'ACTIVE') {
+  if (user.estado !== 'ACTIVE') {
     return next(new ApiError(403, 'Cuenta desactivada'));
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(plainPassword, user.contrasena);
   if (!isPasswordValid) {
     return next(new ApiError(401, 'Credenciales invalidas'));
   }
@@ -57,10 +59,10 @@ const login = async (req, res, next) => {
 
   await audit({
     req: { user: { id: String(user.id), email: user.email, role: user.role } },
-    action: 'INICIO_SESION',
-    module: 'AUTENTICACION',
+    accion: 'INICIO_SESION',
+    modulo: 'AUTENTICACION',
     entityId: String(user.id),
-    details: { message: 'Usuario autenticado' }
+    detalles: { message: 'Usuario autenticado' }
   });
 
   res.json({
@@ -69,7 +71,8 @@ const login = async (req, res, next) => {
     user: {
       id: String(user.id),
       _id: String(user.id),
-      name: user.name,
+      name: user.nombre,
+      nombre: user.nombre,
       email: user.email,
       role: user.role,
       area: user.area
@@ -88,4 +91,9 @@ module.exports = {
   login,
   me
 };
+
+
+
+
+
 

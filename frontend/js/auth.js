@@ -1,4 +1,5 @@
-﻿(function bootstrapAuth() {
+﻿// AUTENTICACION CLIENTE: maneja sesion local, permisos basicos y redirecciones.
+(function bootstrapAuth() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const getToken = () => localStorage.getItem(app.config.storage.token);
@@ -68,3 +69,4 @@
     redirect
   };
 })();
+

@@ -1,4 +1,5 @@
-﻿(function printsPage() {
+﻿// PAGINA IMPRESIONES: listado, creacion y revision de solicitudes de impresion.
+(function printsPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const state = {
@@ -27,14 +28,14 @@
       .map(
         (item) => `
           <tr>
-            <td>${item.requester?.name || '-'}</td>
-            <td>${item.documentName}</td>
-            <td>${item.pages}</td>
-            <td>${item.copies}</td>
-            <td>${item.color ? 'Color' : 'B/N'} / ${item.doubleSided ? 'Doble cara' : 'Simple'}</td>
-            <td>${app.ui.badge(item.status)}</td>
+            <td>${item.requester?.name || item.requester?.nombre || '-'}</td>
+            <td>${item.documentName || item.nombre_documento || '-'}</td>
+            <td>${item.pages ?? item.paginas ?? '-'}</td>
+            <td>${item.copies ?? item.copias ?? '-'}</td>
+            <td>${(item.color ?? item.es_color) ? 'Color' : 'B/N'} / ${(item.doubleSided ?? item.doble_cara) ? 'Doble cara' : 'Simple'}</td>
+            <td>${app.ui.badge(item.status || item.estado)}</td>
             <td class="actions">
-              ${canReview() && item.status === 'PENDING' ? `<button class="secondary" data-action="review" data-id="${item._id}">Revisar</button>` : '-'}
+              ${canReview() && (item.status || item.estado) === 'PENDING' ? `<button class="secondary" data-action="review" data-id="${item._id}">Revisar</button>` : '-'}
             </td>
           </tr>
         `
@@ -116,3 +117,4 @@
     }
   });
 })();
+

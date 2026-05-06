@@ -1,4 +1,5 @@
-﻿(function usersPage() {
+﻿// PAGINA USUARIOS: alta, edicion y cambio de estado de cuentas institucionales.
+(function usersPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const state = {
@@ -133,3 +134,4 @@
     }
   });
 })();
+

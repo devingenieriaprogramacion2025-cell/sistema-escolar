@@ -1,4 +1,5 @@
-﻿(function loansPage() {
+﻿// PAGINA PRESTAMOS: administra prestamos, edicion, devolucion y desactivacion.
+(function loansPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const state = {
@@ -46,7 +47,13 @@
     const select = document.getElementById('resourceId');
     if (select) {
       select.innerHTML = state.resources
-        .map((item) => `<option value="${item._id}">${item.code} - ${item.name} (${item.availableQuantity})</option>`)
+        .map((item) => {
+          const id = item._id || item.id;
+          const code = item.code || item.codigo || '-';
+          const name = item.name || item.nombre || '-';
+          const available = item.availableQuantity ?? item.cantidad_disponible ?? '-';
+          return `<option value="${id}">${code} - ${name} (${available})</option>`;
+        })
         .join('');
     }
   };
@@ -54,13 +61,13 @@
   const loadUsers = async () => {
     if (!canCreateLoan()) return;
     const response = await app.api.get('/users/operational');
-    const usersByName = new Map(response.data.map((item) => [normalizeText(item.name), item]));
+    const usersByName = new Map(response.data.map((item) => [normalizeText(item.name || item.nombre || ''), item]));
 
     state.users = REQUESTER_NAMES.map((name) => usersByName.get(normalizeText(name))).filter(Boolean);
 
     const select = document.getElementById('requesterId');
     select.innerHTML = ['<option value="">Usuario actual</option>']
-      .concat(state.users.map((item) => `<option value="${item._id}">${item.name}</option>`))
+      .concat(state.users.map((item) => `<option value="${item._id || item.id}">${item.name || item.nombre}</option>`))
       .join('');
 
     const missing = REQUESTER_NAMES.filter((name) => !usersByName.has(normalizeText(name)));
@@ -78,22 +85,22 @@
       .map(
         (loan) => `
           <tr>
-            <td>${loan.requester?.name || '-'}</td>
-            <td>${loan.approvedBy?.name || '-'}</td>
-            <td>${loan.resource?.name || '-'}</td>
-            <td>${loan.quantity}</td>
-            <td>${app.ui.formatDate(loan.startDate)}</td>
-            <td>${app.ui.formatDate(loan.dueDate)}</td>
-            <td>${app.ui.badge(loan.status)}</td>
+            <td>${loan.requester?.name || loan.requester?.nombre || '-'}</td>
+            <td>${loan.approvedBy?.name || loan.approvedBy?.nombre || '-'}</td>
+            <td>${loan.resource?.name || loan.resource?.nombre || '-'}</td>
+            <td>${loan.quantity ?? loan.cantidad ?? '-'}</td>
+            <td>${app.ui.formatDate(loan.startDate || loan.fecha_inicio)}</td>
+            <td>${app.ui.formatDate(loan.dueDate || loan.fecha_vencimiento)}</td>
+            <td>${app.ui.badge(loan.status || loan.estado)}</td>
             <td class="actions">
               ${
-                allowManage && ['ACTIVE', 'OVERDUE', 'PENDING'].includes(loan.status)
+                allowManage && ['ACTIVE', 'OVERDUE', 'PENDING'].includes(loan.status || loan.estado)
                   ? `
-                    <button class="secondary" data-action="edit" data-id="${loan._id}">Editar</button>
-                    <button class="danger" data-action="deactivate" data-id="${loan._id}">Desactivar</button>
+                    <button class="secondary" data-action="edit" data-id="${loan._id || loan.id}">Editar</button>
+                    <button class="danger" data-action="deactivate" data-id="${loan._id || loan.id}">Desactivar</button>
                   `
-                  : allowReturn && ['ACTIVE', 'OVERDUE'].includes(loan.status)
-                    ? `<button class="success" data-action="return" data-id="${loan._id}">Registrar devolucion</button>`
+                  : allowReturn && ['ACTIVE', 'OVERDUE'].includes(loan.status || loan.estado)
+                    ? `<button class="success" data-action="return" data-id="${loan._id || loan.id}">Registrar devolucion</button>`
                     : '-'
               }
             </td>
@@ -104,17 +111,18 @@
   };
 
   const editLoan = async (loanId) => {
-    const loan = state.loans.find((item) => item._id === loanId);
+    const loan = state.loans.find((item) => String(item._id || item.id) === String(loanId));
     if (!loan) throw new Error('Prestamo no encontrado');
 
-    const dueDefault = loan.dueDate ? new Date(loan.dueDate).toISOString().slice(0, 10) : '';
+    const dueDefaultValue = loan.dueDate || loan.fecha_vencimiento;
+    const dueDefault = dueDefaultValue ? new Date(dueDefaultValue).toISOString().slice(0, 10) : '';
     const dueDate = window.prompt('Nueva fecha de vencimiento (YYYY-MM-DD)', dueDefault);
     if (dueDate === null) return;
 
-    const quantity = window.prompt('Nueva cantidad', String(loan.quantity || 1));
+    const quantity = window.prompt('Nueva cantidad', String(loan.quantity ?? loan.cantidad ?? 1));
     if (quantity === null) return;
 
-    const comments = window.prompt('Comentario (opcional)', loan.comments || '');
+    const comments = window.prompt('Comentario (opcional)', loan.comments || loan.comentarios || '');
     if (comments === null) return;
 
     await app.api.patch(`/loans/${loanId}`, {
@@ -223,3 +231,4 @@
     }
   });
 })();
+

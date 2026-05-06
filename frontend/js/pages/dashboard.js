@@ -1,5 +1,22 @@
-﻿(function dashboardPage() {
+﻿// PAGINA DASHBOARD: carga metricas, alertas y graficos principales.
+(function dashboardPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
+  const STATUS_LABELS = {
+    ACTIVE: 'Activos',
+    OVERDUE: 'Vencidos',
+    RETURNED: 'Devueltos',
+    CANCELLED: 'Cancelados',
+    PENDING: 'Pendientes',
+    APPROVED: 'Aprobadas',
+    REJECTED: 'Rechazadas',
+    DONE: 'Completadas',
+    IN_PROGRESS: 'En progreso'
+  };
+
+  const formatChartLabel = (item, labelKey) => {
+    const raw = item[labelKey] || item.status || item.estado || item.nombre || item.name || 'Item';
+    return STATUS_LABELS[raw] || raw;
+  };
 
   const renderChart = (containerId, rows, labelKey) => {
     const container = document.getElementById(containerId);
@@ -17,7 +34,7 @@
         ${rows
           .map((item) => {
             const value = Number(item.total || item.count || 0);
-            const label = item[labelKey] || item.status || 'Item';
+            const label = formatChartLabel(item, labelKey);
             const width = Math.max((value / maxValue) * 100, 3);
             return `
               <div class="chart-row">
@@ -49,7 +66,7 @@
       lowStock.innerHTML = data.alerts.lowStock
         .map(
           (item) =>
-            `<li>${item.name} (${item.code}) - Disponible: ${item.availableQuantity} / Minimo: ${item.minStock}</li>`
+            `<li>${item.name || item.nombre} (${item.code || item.codigo}) - Disponible: ${item.availableQuantity} / Minimo: ${item.minStock}</li>`
         )
         .join('');
     }
@@ -61,7 +78,7 @@
       overdue.innerHTML = data.alerts.overdueLoans
         .map(
           (item) =>
-            `<li>${item.resource?.name || 'Recurso'} - ${item.requester?.name || 'Usuario'} - Vence: ${app.ui.formatDate(
+            `<li>${item.resource?.name || item.resource?.nombre || 'Recurso'} - ${item.requester?.name || item.requester?.nombre || 'Usuario'} - Vence: ${app.ui.formatDate(
               item.dueDate
             )}</li>`
         )
@@ -89,3 +106,4 @@
     }
   });
 })();
+

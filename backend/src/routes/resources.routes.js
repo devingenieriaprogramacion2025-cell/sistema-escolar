@@ -20,3 +20,8 @@ router.post('/categories', authorizeRoles(ROLES.ADMIN, ROLES.INSPECTORIA), async
 router.put('/categories/:id', authorizeRoles(ROLES.ADMIN, ROLES.INSPECTORIA), asyncHandler(resourcesController.updateCategory));
 
 module.exports = router;
+
+
+
+
+

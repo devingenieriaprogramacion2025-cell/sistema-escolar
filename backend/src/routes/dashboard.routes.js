@@ -10,3 +10,8 @@ const router = express.Router();
 router.get('/', authMiddleware, authorizeRoles(ROLES.ADMIN, ROLES.DIRECTIVO, ROLES.INSPECTORIA, ROLES.DOCENTE, ROLES.ENCARGADO), asyncHandler(dashboardController.getDashboard));
 
 module.exports = router;
+
+
+
+
+

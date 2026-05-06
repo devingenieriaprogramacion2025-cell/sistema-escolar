@@ -1,4 +1,5 @@
-﻿(function reservationsPage() {
+﻿// PAGINA RESERVAS: creacion y revision de reservas de recursos.
+(function reservationsPage() {
   const app = (window.SchoolApp = window.SchoolApp || {});
 
   const state = {
@@ -34,18 +35,23 @@
     const response = await app.api.get('/resources?limit=100');
     state.resources = response.data;
     document.getElementById('resourceId').innerHTML = state.resources
-      .map((item) => `<option value="${item._id}">${item.code} - ${item.name}</option>`)
+      .map((item) => {
+        const id = item._id || item.id;
+        const code = item.code || item.codigo || '-';
+        const name = item.name || item.nombre || '-';
+        return `<option value="${id}">${code} - ${name}</option>`;
+      })
       .join('');
   };
 
   const loadUsers = async () => {
     if (!canReview()) return;
     const response = await app.api.get('/users/operational');
-    const usersByName = new Map(response.data.map((item) => [normalizeText(item.name), item]));
+    const usersByName = new Map(response.data.map((item) => [normalizeText(item.name || item.nombre || ''), item]));
     state.users = REQUESTER_NAMES.map((name) => usersByName.get(normalizeText(name))).filter(Boolean);
 
     document.getElementById('requesterId').innerHTML = ['<option value="">Usuario actual</option>']
-      .concat(state.users.map((user) => `<option value="${user._id}">${user.name}</option>`))
+      .concat(state.users.map((user) => `<option value="${user._id || user.id}">${user.name || user.nombre}</option>`))
       .join('');
 
     const missing = REQUESTER_NAMES.filter((name) => !usersByName.has(normalizeText(name)));
@@ -62,17 +68,17 @@
       .map(
         (item) => `
           <tr>
-            <td>${item.requester?.name || '-'}</td>
-            <td>${item.resource?.name || '-'}</td>
-            <td>${item.purpose}</td>
-            <td>${app.ui.formatDate(item.startDate)} - ${app.ui.formatDate(item.endDate)}</td>
-            <td>${app.ui.badge(item.status)}</td>
-            <td>${item.reviewComments || '-'}</td>
+            <td>${item.requester?.name || item.requester?.nombre || '-'}</td>
+            <td>${item.resource?.name || item.resource?.nombre || '-'}</td>
+            <td>${item.purpose || item.proposito || '-'}</td>
+            <td>${app.ui.formatDate(item.startDate || item.fecha_inicio)} - ${app.ui.formatDate(item.endDate || item.fecha_fin)}</td>
+            <td>${app.ui.badge(item.status || item.estado)}</td>
+            <td>${item.reviewComments || item.comentarios_revision || '-'}</td>
             <td class="actions">
               ${
-                allowReview && item.status === 'PENDING'
-                  ? `<button class="success" data-action="approve" data-id="${item._id}">Aprobar</button>
-                     <button class="danger" data-action="reject" data-id="${item._id}">Rechazar</button>`
+                allowReview && (item.status || item.estado) === 'PENDING'
+                  ? `<button class="success" data-action="approve" data-id="${item._id || item.id}">Aprobar</button>
+                     <button class="danger" data-action="reject" data-id="${item._id || item.id}">Rechazar</button>`
                   : '-'
               }
             </td>
@@ -165,3 +171,4 @@
     }
   });
 })();
+

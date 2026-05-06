@@ -24,45 +24,52 @@ const normalizeText = (value = '') =>
     .trim()
     .toUpperCase();
 
-const allowedRequesterNamesSet = new Set(LOAN_REQUESTER_NAMES.map((name) => normalizeText(name)));
+const allowedRequesterNamesSet = new Set(LOAN_REQUESTER_NAMES.map((nombre) => normalizeText(nombre)));
 
-const isLibraryManager = (user) => user?.role === ROLES.ENCARGADO && normalizeText(user.area) === 'BIBLIOTECA';
+const getUserRole = (user) => user?.rol || user?.role || '';
+const isLibraryManager = (user) => getUserRole(user) === ROLES.ENCARGADO && normalizeText(user.area) === 'BIBLIOTECA';
 
 const mapLoanRow = (row) => ({
   _id: String(row.id),
   id: String(row.id),
-  quantity: row.quantity,
-  startDate: row.start_date,
-  dueDate: row.due_date,
-  returnedDate: row.returned_date,
-  comments: row.comments,
-  status: row.status,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  requester: row.requester_id
+  quantity: row.cantidad,
+  cantidad: row.cantidad,
+  startDate: row.fecha_inicio,
+  dueDate: row.fecha_vencimiento,
+  returnedDate: row.fecha_devolucion,
+  comments: row.comentarios,
+  status: row.estado,
+  estado: row.estado,
+  createdAt: row.creado_en,
+  updatedAt: row.actualizado_en,
+  requester: row.solicitante_id
     ? {
-        _id: String(row.requester_id),
-        id: String(row.requester_id),
-        name: row.requester_name,
+        _id: String(row.solicitante_id),
+        id: String(row.solicitante_id),
+        name: row.requester_nombre,
+        nombre: row.requester_nombre,
         email: row.requester_email,
         area: row.requester_area
       }
     : null,
-  resource: row.resource_id
+  resource: row.recurso_id
     ? {
-        _id: String(row.resource_id),
-        id: String(row.resource_id),
-        name: row.resource_name,
-        code: row.resource_code,
+        _id: String(row.recurso_id),
+        id: String(row.recurso_id),
+        name: row.resource_nombre,
+        nombre: row.resource_nombre,
+        code: row.resource_codigo,
+        codigo: row.resource_codigo,
         area: row.resource_area
       }
     : null,
-  approvedBy: row.approved_by
+  approvedBy: row.aprobado_por
     ? {
-        _id: String(row.approved_by),
-        id: String(row.approved_by),
-        name: row.approved_by_name,
-        email: row.approved_by_email
+        _id: String(row.aprobado_por),
+        id: String(row.aprobado_por),
+        name: row.aprobado_por_nombre,
+        nombre: row.aprobado_por_nombre,
+        email: row.aprobado_por_email
       }
     : null
 });
@@ -71,7 +78,7 @@ const getLoanFiltersByRole = async (req) => {
   const filters = [];
   const params = {};
 
-  if (req.user.role === ROLES.ENCARGADO) {
+  if (getUserRole(req.user) === ROLES.ENCARGADO) {
     filters.push('res.area = @roleArea');
     params.roleArea = req.user.area;
   }
@@ -85,18 +92,18 @@ const listLoans = async (req, res) => {
   const filters = [...scope.filters];
   const params = { ...scope.params, skip, limit };
 
-  if (req.query.status) {
-    filters.push('UPPER(l.status) = @status');
-    params.status = req.query.status.toUpperCase();
+  if (req.query.estado) {
+    filters.push('UPPER(l.estado) = @estado');
+    params.estado = req.query.estado.toUpperCase();
   }
 
   if (req.query.requesterId && isValidObjectId(req.query.requesterId)) {
-    filters.push('l.requester_id = @requesterId');
+    filters.push('l.solicitante_id = @requesterId');
     params.requesterId = Number(req.query.requesterId);
   }
 
   if (req.query.resourceId && isValidObjectId(req.query.resourceId)) {
-    filters.push('l.resource_id = @resourceId');
+    filters.push('l.recurso_id = @resourceId');
     params.resourceId = Number(req.query.resourceId);
   }
 
@@ -105,17 +112,17 @@ const listLoans = async (req, res) => {
   const rows = await query(
     `
     SELECT
-      l.id, l.requester_id, l.resource_id, l.quantity, l.start_date, l.due_date, l.returned_date,
-      l.comments, l.approved_by, l.status, l.created_at, l.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      app_u.name AS approved_by_name, app_u.email AS approved_by_email
-    FROM dbo.loans l
-    INNER JOIN dbo.users req_u ON req_u.id = l.requester_id
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
-    LEFT JOIN dbo.users app_u ON app_u.id = l.approved_by
+      l.id, l.solicitante_id, l.recurso_id, l.cantidad, l.fecha_inicio, l.fecha_vencimiento, l.fecha_devolucion,
+      l.comentarios, l.aprobado_por, l.estado, l.creado_en, l.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      app_u.nombre AS aprobado_por_nombre, app_u.email AS aprobado_por_email
+    FROM dbo.prestamos l
+    INNER JOIN dbo.usuarios req_u ON req_u.id = l.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
+    LEFT JOIN dbo.usuarios app_u ON app_u.id = l.aprobado_por
     ${whereClause}
-    ORDER BY l.created_at DESC
+    ORDER BY l.creado_en DESC
     OFFSET @skip ROWS FETCH NEXT @limit ROWS ONLY;
     `,
     params
@@ -124,8 +131,8 @@ const listLoans = async (req, res) => {
   const total = await scalar(
     `
     SELECT COUNT(1) AS total
-    FROM dbo.loans l
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
+    FROM dbo.prestamos l
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
     ${whereClause};
     `,
     params
@@ -148,9 +155,13 @@ const createLoan = async (req, res, next) => {
     return next(new ApiError(403, 'Solo el Encargado de Biblioteca puede generar prestamos'));
   }
 
-  const { requesterId, resourceId, quantity, dueDate, comments } = req.body;
-  if (!resourceId || !quantity || !dueDate) {
-    return next(new ApiError(400, 'resourceId, quantity y dueDate son requeridos'));
+  const requesterId = req.body.requesterId;
+  const resourceId = req.body.resourceId || req.body.recurso_id;
+  const cantidad = req.body.cantidad ?? req.body.quantity;
+  const dueDate = req.body.dueDate || req.body.fecha_vencimiento;
+  const comentarios = req.body.comentarios ?? req.body.comments;
+  if (!resourceId || !cantidad || !dueDate) {
+    return next(new ApiError(400, 'resourceId, cantidad y dueDate son requeridos'));
   }
 
   if (!isValidObjectId(resourceId)) {
@@ -163,8 +174,8 @@ const createLoan = async (req, res, next) => {
 
   const finalRequesterId = Number(requesterId || req.user.id);
   const resourceDbId = Number(resourceId);
-  const quantityNumber = Number(quantity);
-  if (quantityNumber <= 0) {
+  const cantidadNumber = Number(cantidad);
+  if (cantidadNumber <= 0) {
     return next(new ApiError(400, 'La cantidad debe ser mayor a 0'));
   }
 
@@ -175,83 +186,83 @@ const createLoan = async (req, res, next) => {
 
   const requester = await one(
     `
-    SELECT u.id, u.name, u.email, u.status, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+    SELECT u.id, u.nombre, u.email, u.estado, r.nombre AS role_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE u.id = @id;
     `,
     { id: finalRequesterId }
   );
 
-  if (!requester || requester.status !== 'ACTIVE') {
+  if (!requester || requester.estado !== 'ACTIVE') {
     return next(new ApiError(400, 'Solicitante no valido'));
   }
 
   const isCurrentUserRequester = String(requester.id) === String(req.user.id);
-  if (!isCurrentUserRequester && !allowedRequesterNamesSet.has(normalizeText(requester.name))) {
+  if (!isCurrentUserRequester && !allowedRequesterNamesSet.has(normalizeText(requester.nombre))) {
     return next(new ApiError(400, 'El solicitante no esta habilitado para prestamos'));
   }
 
   const resource = await one(
-    'SELECT id, code, area, status, total_quantity, available_quantity FROM dbo.resources WHERE id = @id;',
+    'SELECT id, codigo, area, estado, cantidad_total, cantidad_disponible FROM dbo.recursos WHERE id = @id;',
     { id: resourceDbId }
   );
 
-  if (!resource || resource.status !== 'ACTIVE') {
+  if (!resource || resource.estado !== 'ACTIVE') {
     return next(new ApiError(400, 'Recurso no valido'));
   }
 
-  if (resource.available_quantity < quantityNumber) {
+  if (resource.cantidad_disponible < cantidadNumber) {
     return next(new ApiError(409, 'Stock insuficiente para el prestamo'));
   }
 
   const createdId = await withTransaction(async (tx) => {
     await query(
       `
-      UPDATE dbo.resources
-      SET available_quantity = available_quantity - @quantity,
-          updated_at = SYSUTCDATETIME()
+      UPDATE dbo.recursos
+      SET cantidad_disponible = cantidad_disponible - @cantidad,
+          actualizado_en = SYSUTCDATETIME()
       WHERE id = @resourceId;
       `,
-      { quantity: quantityNumber, resourceId: resourceDbId },
+      { cantidad: cantidadNumber, resourceId: resourceDbId },
       tx
     );
 
     await query(
       `
-      INSERT INTO dbo.loans
-      (requester_id, resource_id, quantity, start_date, due_date, returned_date, comments, approved_by, status, created_at, updated_at)
+      INSERT INTO dbo.prestamos
+      (solicitante_id, recurso_id, cantidad, fecha_inicio, fecha_vencimiento, fecha_devolucion, comentarios, aprobado_por, estado, creado_en, actualizado_en)
       VALUES
-      (@requesterId, @resourceId, @quantity, @startDate, @dueDate, NULL, @comments, @approvedBy, 'ACTIVE', SYSUTCDATETIME(), SYSUTCDATETIME());
+      (@requesterId, @resourceId, @cantidad, @startDate, @dueDate, NULL, @comentarios, @approvedBy, 'ACTIVE', SYSUTCDATETIME(), SYSUTCDATETIME());
       `,
       {
         requesterId: finalRequesterId,
         resourceId: resourceDbId,
-        quantity: quantityNumber,
+        cantidad: cantidadNumber,
         startDate: new Date(),
         dueDate: due,
-        comments: comments || '',
+        comentarios: comentarios || '',
         approvedBy: Number(req.user.id)
       },
       tx
     );
 
-    const inserted = await one('SELECT TOP 1 id FROM dbo.loans ORDER BY id DESC;', {}, tx);
+    const inserted = await one('SELECT TOP 1 id FROM dbo.prestamos ORDER BY id DESC;', {}, tx);
     return inserted.id;
   });
 
   const created = await one(
     `
     SELECT
-      l.id, l.requester_id, l.resource_id, l.quantity, l.start_date, l.due_date, l.returned_date,
-      l.comments, l.approved_by, l.status, l.created_at, l.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      app_u.name AS approved_by_name, app_u.email AS approved_by_email
-    FROM dbo.loans l
-    INNER JOIN dbo.users req_u ON req_u.id = l.requester_id
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
-    LEFT JOIN dbo.users app_u ON app_u.id = l.approved_by
+      l.id, l.solicitante_id, l.recurso_id, l.cantidad, l.fecha_inicio, l.fecha_vencimiento, l.fecha_devolucion,
+      l.comentarios, l.aprobado_por, l.estado, l.creado_en, l.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      app_u.nombre AS aprobado_por_nombre, app_u.email AS aprobado_por_email
+    FROM dbo.prestamos l
+    INNER JOIN dbo.usuarios req_u ON req_u.id = l.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
+    LEFT JOIN dbo.usuarios app_u ON app_u.id = l.aprobado_por
     WHERE l.id = @id;
     `,
     { id: createdId }
@@ -259,10 +270,10 @@ const createLoan = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'CREAR_PRESTAMO',
-    module: 'PRESTAMOS',
+    accion: 'CREAR_PRESTAMO',
+    modulo: 'PRESTAMOS',
     entityId: String(createdId),
-    details: { requester: requester.email, resource: resource.code, quantity: quantityNumber }
+    detalles: { requester: requester.email, resource: resource.codigo, cantidad: cantidadNumber }
   });
 
   res.status(201).json({ success: true, data: mapLoanRow(created) });
@@ -281,10 +292,10 @@ const updateLoan = async (req, res, next) => {
   const loan = await one(
     `
     SELECT
-      l.id, l.quantity, l.start_date, l.due_date, l.comments, l.status, l.resource_id,
+      l.id, l.cantidad, l.fecha_inicio, l.fecha_vencimiento, l.comentarios, l.estado, l.recurso_id,
       res.area AS resource_area
-    FROM dbo.loans l
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
+    FROM dbo.prestamos l
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
     WHERE l.id = @id;
     `,
     { id: loanId }
@@ -298,64 +309,64 @@ const updateLoan = async (req, res, next) => {
     return next(new ApiError(403, 'No puedes editar prestamos fuera de tu area'));
   }
 
-  if (!['ACTIVE', 'OVERDUE', 'PENDING'].includes(loan.status)) {
+  if (!['ACTIVE', 'OVERDUE', 'PENDING'].includes(loan.estado)) {
     return next(new ApiError(409, 'Solo prestamos activos, vencidos o pendientes pueden editarse'));
   }
 
-  const hasQuantity = req.body.quantity !== undefined;
-  const hasDueDate = req.body.dueDate !== undefined;
-  const hasComments = req.body.comments !== undefined;
+  const hasQuantity = req.body.cantidad !== undefined || req.body.quantity !== undefined;
+  const hasDueDate = req.body.dueDate !== undefined || req.body.fecha_vencimiento !== undefined;
+  const hasComments = req.body.comments !== undefined || req.body.comentarios !== undefined;
   if (!hasQuantity && !hasDueDate && !hasComments) {
-    return next(new ApiError(400, 'Debes enviar al menos uno de estos campos: quantity, dueDate o comments'));
+    return next(new ApiError(400, 'Debes enviar al menos uno de estos campos: cantidad, dueDate o comments'));
   }
 
   const resource = await one(
-    'SELECT id, total_quantity, available_quantity FROM dbo.resources WHERE id = @id;',
-    { id: loan.resource_id }
+    'SELECT id, cantidad_total, cantidad_disponible FROM dbo.recursos WHERE id = @id;',
+    { id: loan.recurso_id }
   );
   if (!resource) {
     return next(new ApiError(404, 'Recurso asociado no encontrado'));
   }
 
-  let newQuantity = loan.quantity;
+  let newQuantity = loan.cantidad;
   if (hasQuantity) {
-    newQuantity = Number(req.body.quantity);
+    newQuantity = Number(req.body.cantidad ?? req.body.quantity);
     if (!Number.isFinite(newQuantity) || newQuantity <= 0) {
-      return next(new ApiError(400, 'quantity invalida'));
+      return next(new ApiError(400, 'cantidad invalida'));
     }
   }
 
-  let newDueDate = loan.due_date;
+  let newDueDate = loan.fecha_vencimiento;
   if (hasDueDate) {
-    const due = new Date(req.body.dueDate);
+    const due = new Date(req.body.dueDate || req.body.fecha_vencimiento);
     if (Number.isNaN(due.getTime())) {
       return next(new ApiError(400, 'dueDate invalido'));
     }
-    if (due <= new Date(loan.start_date)) {
+    if (due <= new Date(loan.fecha_inicio)) {
       return next(new ApiError(400, 'dueDate debe ser posterior a startDate'));
     }
     newDueDate = due;
   }
 
-  const newComments = hasComments ? String(req.body.comments || '').trim() : loan.comments;
+  const newComments = hasComments ? String(req.body.comments ?? req.body.comentarios ?? '').trim() : loan.comentarios;
 
   await withTransaction(async (tx) => {
     if (hasQuantity) {
-      const delta = newQuantity - loan.quantity;
-      if (delta > 0 && resource.available_quantity < delta) {
+      const delta = newQuantity - loan.cantidad;
+      if (delta > 0 && resource.cantidad_disponible < delta) {
         throw new ApiError(409, 'Stock insuficiente para aumentar la cantidad del prestamo');
       }
 
       await query(
         `
-        UPDATE dbo.resources
-        SET available_quantity =
+        UPDATE dbo.recursos
+        SET cantidad_disponible =
           CASE
-            WHEN (available_quantity - @delta) > total_quantity THEN total_quantity
-            WHEN (available_quantity - @delta) < 0 THEN 0
-            ELSE (available_quantity - @delta)
+            WHEN (cantidad_disponible - @delta) > cantidad_total THEN cantidad_total
+            WHEN (cantidad_disponible - @delta) < 0 THEN 0
+            ELSE (cantidad_disponible - @delta)
           END,
-          updated_at = SYSUTCDATETIME()
+          actualizado_en = SYSUTCDATETIME()
         WHERE id = @resourceId;
         `,
         { delta, resourceId: resource.id },
@@ -365,18 +376,18 @@ const updateLoan = async (req, res, next) => {
 
     await query(
       `
-      UPDATE dbo.loans
-      SET quantity = @quantity,
-          due_date = @dueDate,
-          comments = @comments,
-          updated_at = SYSUTCDATETIME()
+      UPDATE dbo.prestamos
+      SET cantidad = @cantidad,
+          fecha_vencimiento = @dueDate,
+          comentarios = @comentarios,
+          actualizado_en = SYSUTCDATETIME()
       WHERE id = @id;
       `,
       {
         id: loanId,
-        quantity: newQuantity,
+        cantidad: newQuantity,
         dueDate: newDueDate,
-        comments: newComments
+        comentarios: newComments
       },
       tx
     );
@@ -385,15 +396,15 @@ const updateLoan = async (req, res, next) => {
   const updated = await one(
     `
     SELECT
-      l.id, l.requester_id, l.resource_id, l.quantity, l.start_date, l.due_date, l.returned_date,
-      l.comments, l.approved_by, l.status, l.created_at, l.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      app_u.name AS approved_by_name, app_u.email AS approved_by_email
-    FROM dbo.loans l
-    INNER JOIN dbo.users req_u ON req_u.id = l.requester_id
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
-    LEFT JOIN dbo.users app_u ON app_u.id = l.approved_by
+      l.id, l.solicitante_id, l.recurso_id, l.cantidad, l.fecha_inicio, l.fecha_vencimiento, l.fecha_devolucion,
+      l.comentarios, l.aprobado_por, l.estado, l.creado_en, l.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      app_u.nombre AS aprobado_por_nombre, app_u.email AS aprobado_por_email
+    FROM dbo.prestamos l
+    INNER JOIN dbo.usuarios req_u ON req_u.id = l.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
+    LEFT JOIN dbo.usuarios app_u ON app_u.id = l.aprobado_por
     WHERE l.id = @id;
     `,
     { id: loanId }
@@ -401,10 +412,10 @@ const updateLoan = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'ACTUALIZAR_PRESTAMO',
-    module: 'PRESTAMOS',
+    accion: 'ACTUALIZAR_PRESTAMO',
+    modulo: 'PRESTAMOS',
     entityId: String(loanId),
-    details: { fields: Object.keys(req.body) }
+    detalles: { fields: Object.keys(req.body) }
   });
 
   res.json({ success: true, data: mapLoanRow(updated) });
@@ -423,10 +434,10 @@ const deactivateLoan = async (req, res, next) => {
   const loan = await one(
     `
     SELECT
-      l.id, l.quantity, l.status, l.comments, l.resource_id,
-      res.area AS resource_area, res.total_quantity, res.available_quantity
-    FROM dbo.loans l
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
+      l.id, l.cantidad, l.estado, l.comentarios, l.recurso_id,
+      res.area AS resource_area, res.cantidad_total, res.cantidad_disponible
+    FROM dbo.prestamos l
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
     WHERE l.id = @id;
     `,
     { id: loanId }
@@ -440,38 +451,38 @@ const deactivateLoan = async (req, res, next) => {
     return next(new ApiError(403, 'No puedes desactivar prestamos fuera de tu area'));
   }
 
-  if (!['ACTIVE', 'OVERDUE', 'PENDING'].includes(loan.status)) {
+  if (!['ACTIVE', 'OVERDUE', 'PENDING'].includes(loan.estado)) {
     return next(new ApiError(409, 'Solo prestamos activos, vencidos o pendientes pueden desactivarse'));
   }
 
   await withTransaction(async (tx) => {
     await query(
       `
-      UPDATE dbo.loans
-      SET status = 'CANCELLED',
-          comments = @comments,
-          updated_at = SYSUTCDATETIME()
+      UPDATE dbo.prestamos
+      SET estado = 'CANCELLED',
+          comentarios = @comentarios,
+          actualizado_en = SYSUTCDATETIME()
       WHERE id = @id;
       `,
       {
         id: loanId,
-        comments: req.body?.comments ? String(req.body.comments).trim() : loan.comments
+        comentarios: req.body?.comments ? String(req.body.comments).trim() : loan.comentarios
       },
       tx
     );
 
     await query(
       `
-      UPDATE dbo.resources
-      SET available_quantity =
+      UPDATE dbo.recursos
+      SET cantidad_disponible =
         CASE
-          WHEN (available_quantity + @qty) > total_quantity THEN total_quantity
-          ELSE (available_quantity + @qty)
+          WHEN (cantidad_disponible + @qty) > cantidad_total THEN cantidad_total
+          ELSE (cantidad_disponible + @qty)
         END,
-        updated_at = SYSUTCDATETIME()
+        actualizado_en = SYSUTCDATETIME()
       WHERE id = @resourceId;
       `,
-      { qty: loan.quantity, resourceId: loan.resource_id },
+      { qty: loan.cantidad, resourceId: loan.recurso_id },
       tx
     );
   });
@@ -479,15 +490,15 @@ const deactivateLoan = async (req, res, next) => {
   const updated = await one(
     `
     SELECT
-      l.id, l.requester_id, l.resource_id, l.quantity, l.start_date, l.due_date, l.returned_date,
-      l.comments, l.approved_by, l.status, l.created_at, l.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      app_u.name AS approved_by_name, app_u.email AS approved_by_email
-    FROM dbo.loans l
-    INNER JOIN dbo.users req_u ON req_u.id = l.requester_id
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
-    LEFT JOIN dbo.users app_u ON app_u.id = l.approved_by
+      l.id, l.solicitante_id, l.recurso_id, l.cantidad, l.fecha_inicio, l.fecha_vencimiento, l.fecha_devolucion,
+      l.comentarios, l.aprobado_por, l.estado, l.creado_en, l.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      app_u.nombre AS aprobado_por_nombre, app_u.email AS aprobado_por_email
+    FROM dbo.prestamos l
+    INNER JOIN dbo.usuarios req_u ON req_u.id = l.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
+    LEFT JOIN dbo.usuarios app_u ON app_u.id = l.aprobado_por
     WHERE l.id = @id;
     `,
     { id: loanId }
@@ -495,10 +506,10 @@ const deactivateLoan = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'DESACTIVAR_PRESTAMO',
-    module: 'PRESTAMOS',
+    accion: 'DESACTIVAR_PRESTAMO',
+    modulo: 'PRESTAMOS',
     entityId: String(loanId),
-    details: { status: 'CANCELLED' }
+    detalles: { estado: 'CANCELLED' }
   });
 
   res.json({ success: true, data: mapLoanRow(updated) });
@@ -513,10 +524,10 @@ const returnLoan = async (req, res, next) => {
   const loan = await one(
     `
     SELECT
-      l.id, l.quantity, l.status, l.resource_id,
-      res.total_quantity, res.available_quantity
-    FROM dbo.loans l
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
+      l.id, l.cantidad, l.estado, l.recurso_id,
+      res.cantidad_total, res.cantidad_disponible
+    FROM dbo.prestamos l
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
     WHERE l.id = @id;
     `,
     { id: loanId }
@@ -526,7 +537,7 @@ const returnLoan = async (req, res, next) => {
     return next(new ApiError(404, 'Prestamo no encontrado'));
   }
 
-  if (!['ACTIVE', 'OVERDUE'].includes(loan.status)) {
+  if (!['ACTIVE', 'OVERDUE'].includes(loan.estado)) {
     return next(new ApiError(400, 'Solo prestamos activos o vencidos pueden cerrarse'));
   }
 
@@ -535,10 +546,10 @@ const returnLoan = async (req, res, next) => {
   await withTransaction(async (tx) => {
     await query(
       `
-      UPDATE dbo.loans
-      SET status = 'RETURNED',
-          returned_date = @returnedDate,
-          updated_at = SYSUTCDATETIME()
+      UPDATE dbo.prestamos
+      SET estado = 'RETURNED',
+          fecha_devolucion = @returnedDate,
+          actualizado_en = SYSUTCDATETIME()
       WHERE id = @id;
       `,
       { id: loanId, returnedDate },
@@ -547,16 +558,16 @@ const returnLoan = async (req, res, next) => {
 
     await query(
       `
-      UPDATE dbo.resources
-      SET available_quantity =
+      UPDATE dbo.recursos
+      SET cantidad_disponible =
         CASE
-          WHEN (available_quantity + @qty) > total_quantity THEN total_quantity
-          ELSE (available_quantity + @qty)
+          WHEN (cantidad_disponible + @qty) > cantidad_total THEN cantidad_total
+          ELSE (cantidad_disponible + @qty)
         END,
-        updated_at = SYSUTCDATETIME()
+        actualizado_en = SYSUTCDATETIME()
       WHERE id = @resourceId;
       `,
-      { qty: loan.quantity, resourceId: loan.resource_id },
+      { qty: loan.cantidad, resourceId: loan.recurso_id },
       tx
     );
   });
@@ -564,15 +575,15 @@ const returnLoan = async (req, res, next) => {
   const updated = await one(
     `
     SELECT
-      l.id, l.requester_id, l.resource_id, l.quantity, l.start_date, l.due_date, l.returned_date,
-      l.comments, l.approved_by, l.status, l.created_at, l.updated_at,
-      req_u.name AS requester_name, req_u.email AS requester_email, req_u.area AS requester_area,
-      res.name AS resource_name, res.code AS resource_code, res.area AS resource_area,
-      app_u.name AS approved_by_name, app_u.email AS approved_by_email
-    FROM dbo.loans l
-    INNER JOIN dbo.users req_u ON req_u.id = l.requester_id
-    INNER JOIN dbo.resources res ON res.id = l.resource_id
-    LEFT JOIN dbo.users app_u ON app_u.id = l.approved_by
+      l.id, l.solicitante_id, l.recurso_id, l.cantidad, l.fecha_inicio, l.fecha_vencimiento, l.fecha_devolucion,
+      l.comentarios, l.aprobado_por, l.estado, l.creado_en, l.actualizado_en,
+      req_u.nombre AS requester_nombre, req_u.email AS requester_email, req_u.area AS requester_area,
+      res.nombre AS resource_nombre, res.codigo AS resource_codigo, res.area AS resource_area,
+      app_u.nombre AS aprobado_por_nombre, app_u.email AS aprobado_por_email
+    FROM dbo.prestamos l
+    INNER JOIN dbo.usuarios req_u ON req_u.id = l.solicitante_id
+    INNER JOIN dbo.recursos res ON res.id = l.recurso_id
+    LEFT JOIN dbo.usuarios app_u ON app_u.id = l.aprobado_por
     WHERE l.id = @id;
     `,
     { id: loanId }
@@ -580,10 +591,10 @@ const returnLoan = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'DEVOLVER_PRESTAMO',
-    module: 'PRESTAMOS',
+    accion: 'DEVOLVER_PRESTAMO',
+    modulo: 'PRESTAMOS',
     entityId: String(loanId),
-    details: { returnedDate }
+    detalles: { returnedDate }
   });
 
   res.json({ success: true, data: mapLoanRow(updated) });
@@ -596,4 +607,9 @@ module.exports = {
   deactivateLoan,
   returnLoan
 };
+
+
+
+
+
 

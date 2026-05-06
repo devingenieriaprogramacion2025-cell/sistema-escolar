@@ -1,6 +1,8 @@
 ﻿const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const connectDB = require('./config/db');
+const { getDbStatus } = require('./config/db');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/users.routes');
@@ -18,6 +20,7 @@ const { notFoundMiddleware, errorMiddleware } = require('./middlewares/error.mid
 connectDB();
 
 const app = express();
+const frontendPath = path.resolve(__dirname, '../../frontend');
 
 app.use(
   cors({
@@ -26,11 +29,28 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(express.static(frontendPath));
 
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'School internal operations API online'
+  res.sendFile(path.join(frontendPath, 'login.html'));
+});
+
+app.get('/healthz', (req, res) => {
+  const dbStatus = getDbStatus();
+
+  if (dbStatus.connected) {
+    return res.status(200).json({
+      success: true,
+      estado: 'ok',
+      database: 'connected'
+    });
+  }
+
+  return res.status(503).json({
+    success: false,
+    estado: 'degraded',
+    database: 'disconnected',
+    detalles: dbStatus.lastError || 'Esperando conexion a SQL Server'
   });
 });
 
@@ -49,3 +69,8 @@ app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
 module.exports = app;
+
+
+
+
+

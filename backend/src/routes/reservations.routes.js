@@ -15,3 +15,8 @@ router.patch('/:id/review', authorizeRoles(ROLES.ADMIN, ROLES.INSPECTORIA), asyn
 router.patch('/:id/cancel', authorizeRoles(ROLES.ADMIN, ROLES.INSPECTORIA, ROLES.DOCENTE), asyncHandler(reservationsController.cancelReservation));
 
 module.exports = router;
+
+
+
+
+

@@ -7,18 +7,22 @@ const { one, query, scalar } = require('../services/sql.service');
 const mapUserRow = (row) => ({
   _id: String(row.id),
   id: String(row.id),
-  name: row.name,
+  name: row.nombre,
+  nombre: row.nombre,
   email: row.email,
   area: row.area,
-  phone: row.phone,
-  status: row.status,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  role: row.role_id
+  phone: row.telefono,
+  telefono: row.telefono,
+  status: row.estado,
+  estado: row.estado,
+  createdAt: row.creado_en,
+  updatedAt: row.actualizado_en,
+  role: row.rol_id
     ? {
-        _id: String(row.role_id),
-        id: String(row.role_id),
-        name: row.role_name
+        _id: String(row.rol_id),
+        id: String(row.rol_id),
+        name: row.rol_nombre,
+        nombre: row.rol_nombre
       }
     : null
 });
@@ -29,17 +33,17 @@ const listUsers = async (req, res) => {
   const params = { skip, limit };
 
   if (req.query.role) {
-    where.push('UPPER(r.name) = @roleName');
-    params.roleName = req.query.role.toUpperCase();
+    where.push('UPPER(r.nombre) = @rolName');
+    params.rolName = req.query.role.toUpperCase();
   }
 
-  if (req.query.status) {
-    where.push('UPPER(u.status) = @status');
-    params.status = req.query.status.toUpperCase();
+  if (req.query.estado) {
+    where.push('UPPER(u.estado) = @estado');
+    params.estado = req.query.estado.toUpperCase();
   }
 
   if (req.query.q) {
-    where.push('(u.name LIKE @search OR u.email LIKE @search OR u.area LIKE @search)');
+    where.push('(u.nombre LIKE @search OR u.email LIKE @search OR u.area LIKE @search)');
     params.search = `%${req.query.q}%`;
   }
 
@@ -48,12 +52,12 @@ const listUsers = async (req, res) => {
   const items = await query(
     `
     SELECT
-      u.id, u.name, u.email, u.area, u.phone, u.status, u.created_at, u.updated_at,
-      r.id AS role_id, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.id, u.nombre, u.email, u.area, u.telefono, u.estado, u.creado_en, u.actualizado_en,
+      r.id AS rol_id, r.nombre AS rol_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     ${whereClause}
-    ORDER BY u.created_at DESC
+    ORDER BY u.creado_en DESC
     OFFSET @skip ROWS FETCH NEXT @limit ROWS ONLY;
     `,
     params
@@ -62,8 +66,8 @@ const listUsers = async (req, res) => {
   const total = await scalar(
     `
     SELECT COUNT(1) AS total
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     ${whereClause};
     `,
     params
@@ -82,23 +86,23 @@ const listUsers = async (req, res) => {
 };
 
 const listOperationalUsers = async (req, res) => {
-  const where = ['u.status = @status'];
-  const params = { status: 'ACTIVE' };
+  const where = ['u.estado = @estado'];
+  const params = { estado: 'ACTIVE' };
 
   if (req.query.role) {
-    where.push('UPPER(r.name) = @roleName');
-    params.roleName = req.query.role.toUpperCase();
+    where.push('UPPER(r.nombre) = @rolName');
+    params.rolName = req.query.role.toUpperCase();
   }
 
   const users = await query(
     `
     SELECT
-      u.id, u.name, u.email, u.area, u.phone, u.status, u.created_at, u.updated_at,
-      r.id AS role_id, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.id, u.nombre, u.email, u.area, u.telefono, u.estado, u.creado_en, u.actualizado_en,
+      r.id AS rol_id, r.nombre AS rol_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE ${where.join(' AND ')}
-    ORDER BY u.name ASC;
+    ORDER BY u.nombre ASC;
     `,
     params
   );
@@ -109,10 +113,10 @@ const listOperationalUsers = async (req, res) => {
 const listRoles = async (req, res) => {
   const roles = await query(
     `
-    SELECT id, name, description, status, created_at, updated_at
+    SELECT id, nombre, descripcion, estado, creado_en, actualizado_en
     FROM dbo.roles
-    WHERE status = 'ACTIVE'
-    ORDER BY name ASC;
+    WHERE estado = 'ACTIVE'
+    ORDER BY nombre ASC;
     `
   );
 
@@ -121,63 +125,76 @@ const listRoles = async (req, res) => {
     data: roles.map((row) => ({
       _id: String(row.id),
       id: String(row.id),
-      name: row.name,
-      description: row.description,
-      status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      name: row.nombre,
+      nombre: row.nombre,
+      description: row.descripcion,
+      descripcion: row.descripcion,
+      status: row.estado,
+      estado: row.estado,
+      createdAt: row.creado_en,
+      updatedAt: row.actualizado_en
     }))
   });
 };
 
 const createUser = async (req, res, next) => {
-  const required = requireFields(req.body, ['name', 'email', 'password', 'roleId']);
+  const payload = {
+    nombre: req.body.nombre ?? req.body.name,
+    email: req.body.email,
+    contrasena: req.body.contrasena ?? req.body.password,
+    roleId: req.body.roleId,
+    area: req.body.area,
+    telefono: req.body.telefono ?? req.body.phone,
+    estado: req.body.estado ?? req.body.status
+  };
+
+  const required = requireFields(payload, ['nombre', 'email', 'contrasena', 'roleId']);
   if (!required.valid) {
     return next(new ApiError(400, `Campos requeridos: ${required.missing.join(', ')}`));
   }
 
-  if (!isValidObjectId(req.body.roleId)) {
+  if (!isValidObjectId(payload.roleId)) {
     return next(new ApiError(400, 'roleId invalido'));
   }
 
-  const role = await one('SELECT id, name, status FROM dbo.roles WHERE id = @id;', { id: Number(req.body.roleId) });
-  if (!role || role.status !== 'ACTIVE') {
+  const rol = await one('SELECT id, nombre, estado FROM dbo.roles WHERE id = @id;', { id: Number(payload.roleId) });
+  if (!rol || rol.estado !== 'ACTIVE') {
     return next(new ApiError(400, 'Rol invalido'));
   }
 
-  const normalizedEmail = String(req.body.email).toLowerCase().trim();
-  const existing = await one('SELECT id FROM dbo.users WHERE email = @email;', { email: normalizedEmail });
+  const normalizedEmail = String(payload.email).toLowerCase().trim();
+  const existing = await one('SELECT id FROM dbo.usuarios WHERE email = @email;', { email: normalizedEmail });
   if (existing) {
     return next(new ApiError(409, 'Ya existe un usuario con ese correo'));
   }
 
-  const passwordHash = await bcrypt.hash(String(req.body.password), 10);
+  const contrasenaHash = await bcrypt.hash(String(payload.contrasena), 10);
 
   await query(
     `
-    INSERT INTO dbo.users
-    (name, email, password, role_id, area, phone, status, created_at, updated_at)
+    INSERT INTO dbo.usuarios
+    (nombre, email, contrasena, rol_id, area, telefono, estado, creado_en, actualizado_en)
     VALUES
-    (@name, @email, @password, @roleId, @area, @phone, @status, SYSUTCDATETIME(), SYSUTCDATETIME());
+    (@nombre, @email, @contrasena, @roleId, @area, @telefono, @estado, SYSUTCDATETIME(), SYSUTCDATETIME());
     `,
     {
-      name: req.body.name,
+      nombre: payload.nombre,
       email: normalizedEmail,
-      password: passwordHash,
-      roleId: Number(req.body.roleId),
-      area: req.body.area || 'General',
-      phone: req.body.phone || '',
-      status: req.body.status || 'ACTIVE'
+      contrasena: contrasenaHash,
+      roleId: Number(payload.roleId),
+      area: payload.area || 'General',
+      telefono: payload.telefono || '',
+      estado: payload.estado || 'ACTIVE'
     }
   );
 
   const created = await one(
     `
     SELECT TOP 1
-      u.id, u.name, u.email, u.area, u.phone, u.status, u.created_at, u.updated_at,
-      r.id AS role_id, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.id, u.nombre, u.email, u.area, u.telefono, u.estado, u.creado_en, u.actualizado_en,
+      r.id AS rol_id, r.nombre AS rol_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE u.email = @email
     ORDER BY u.id DESC;
     `,
@@ -186,10 +203,10 @@ const createUser = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'CREAR_USUARIO',
-    module: 'USUARIOS',
+    accion: 'CREAR_USUARIO',
+    modulo: 'USUARIOS',
     entityId: String(created.id),
-    details: { email: created.email, role: role.name }
+    detalles: { email: created.email, role: rol.nombre }
   });
 
   res.status(201).json({ success: true, data: mapUserRow(created) });
@@ -201,28 +218,37 @@ const updateUser = async (req, res, next) => {
   }
 
   const userId = Number(req.params.id);
-  const current = await one('SELECT id FROM dbo.users WHERE id = @id;', { id: userId });
+  const current = await one('SELECT id FROM dbo.usuarios WHERE id = @id;', { id: userId });
   if (!current) {
     return next(new ApiError(404, 'Usuario no encontrado'));
   }
 
+  const payload = {
+    nombre: req.body.nombre ?? req.body.name,
+    area: req.body.area,
+    telefono: req.body.telefono ?? req.body.phone,
+    email: req.body.email,
+    contrasena: req.body.contrasena ?? req.body.password,
+    roleId: req.body.roleId
+  };
+
   let roleId = null;
-  if (req.body.roleId !== undefined) {
-    if (!isValidObjectId(req.body.roleId)) {
+  if (payload.roleId !== undefined) {
+    if (!isValidObjectId(payload.roleId)) {
       return next(new ApiError(400, 'roleId invalido'));
     }
 
-    const role = await one('SELECT id FROM dbo.roles WHERE id = @id;', { id: Number(req.body.roleId) });
-    if (!role) {
+    const rol = await one('SELECT id FROM dbo.roles WHERE id = @id;', { id: Number(payload.roleId) });
+    if (!rol) {
       return next(new ApiError(400, 'Rol no encontrado'));
     }
-    roleId = Number(req.body.roleId);
+    roleId = Number(payload.roleId);
   }
 
-  if (req.body.email) {
-    const normalizedEmail = String(req.body.email).toLowerCase().trim();
+  if (payload.email) {
+    const normalizedEmail = String(payload.email).toLowerCase().trim();
     const duplicated = await one(
-      'SELECT id FROM dbo.users WHERE email = @email AND id <> @id;',
+      'SELECT id FROM dbo.usuarios WHERE email = @email AND id <> @id;',
       { email: normalizedEmail, id: userId }
     );
     if (duplicated) {
@@ -238,29 +264,29 @@ const updateUser = async (req, res, next) => {
     params[key] = value;
   };
 
-  if (req.body.name !== undefined) assign('name', 'name', req.body.name);
-  if (req.body.area !== undefined) assign('area', 'area', req.body.area);
-  if (req.body.phone !== undefined) assign('phone', 'phone', req.body.phone);
-  if (req.body.email !== undefined) assign('email', 'email', String(req.body.email).toLowerCase().trim());
-  if (roleId !== null) assign('role_id', 'roleId', roleId);
+  if (payload.nombre !== undefined) assign('nombre', 'nombre', payload.nombre);
+  if (payload.area !== undefined) assign('area', 'area', payload.area);
+  if (payload.telefono !== undefined) assign('telefono', 'telefono', payload.telefono);
+  if (payload.email !== undefined) assign('email', 'email', String(payload.email).toLowerCase().trim());
+  if (roleId !== null) assign('rol_id', 'roleId', roleId);
 
-  if (req.body.password !== undefined) {
-    const hash = await bcrypt.hash(String(req.body.password), 10);
-    assign('password', 'password', hash);
+  if (payload.contrasena !== undefined) {
+    const hash = await bcrypt.hash(String(payload.contrasena), 10);
+    assign('contrasena', 'contrasena', hash);
   }
 
   if (updates.length > 0) {
-    updates.push('updated_at = SYSUTCDATETIME()');
-    await query(`UPDATE dbo.users SET ${updates.join(', ')} WHERE id = @id;`, params);
+    updates.push('actualizado_en = SYSUTCDATETIME()');
+    await query(`UPDATE dbo.usuarios SET ${updates.join(', ')} WHERE id = @id;`, params);
   }
 
   const updated = await one(
     `
     SELECT
-      u.id, u.name, u.email, u.area, u.phone, u.status, u.created_at, u.updated_at,
-      r.id AS role_id, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.id, u.nombre, u.email, u.area, u.telefono, u.estado, u.creado_en, u.actualizado_en,
+      r.id AS rol_id, r.nombre AS rol_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE u.id = @id;
     `,
     { id: userId }
@@ -268,10 +294,10 @@ const updateUser = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'ACTUALIZAR_USUARIO',
-    module: 'USUARIOS',
+    accion: 'ACTUALIZAR_USUARIO',
+    modulo: 'USUARIOS',
     entityId: String(userId),
-    details: { fields: Object.keys(req.body) }
+    detalles: { fields: Object.keys(req.body) }
   });
 
   res.json({ success: true, data: mapUserRow(updated) });
@@ -282,33 +308,33 @@ const updateUserStatus = async (req, res, next) => {
     return next(new ApiError(400, 'Id de usuario invalido'));
   }
 
-  const { status } = req.body;
-  if (!['ACTIVE', 'INACTIVE'].includes((status || '').toUpperCase())) {
-    return next(new ApiError(400, 'status debe ser ACTIVE o INACTIVE'));
+  const estado = req.body.estado ?? req.body.status;
+  if (!['ACTIVE', 'INACTIVE'].includes((estado || '').toUpperCase())) {
+    return next(new ApiError(400, 'estado debe ser ACTIVE o INACTIVE'));
   }
 
   const userId = Number(req.params.id);
-  const current = await one('SELECT id FROM dbo.users WHERE id = @id;', { id: userId });
+  const current = await one('SELECT id FROM dbo.usuarios WHERE id = @id;', { id: userId });
   if (!current) {
     return next(new ApiError(404, 'Usuario no encontrado'));
   }
 
   await query(
     `
-    UPDATE dbo.users
-    SET status = @status, updated_at = SYSUTCDATETIME()
+    UPDATE dbo.usuarios
+    SET estado = @estado, actualizado_en = SYSUTCDATETIME()
     WHERE id = @id;
     `,
-    { id: userId, status: status.toUpperCase() }
+    { id: userId, estado: estado.toUpperCase() }
   );
 
   const user = await one(
     `
     SELECT
-      u.id, u.name, u.email, u.area, u.phone, u.status, u.created_at, u.updated_at,
-      r.id AS role_id, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.id, u.nombre, u.email, u.area, u.telefono, u.estado, u.creado_en, u.actualizado_en,
+      r.id AS rol_id, r.nombre AS rol_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE u.id = @id;
     `,
     { id: userId }
@@ -316,10 +342,10 @@ const updateUserStatus = async (req, res, next) => {
 
   await audit({
     req,
-    action: 'ACTUALIZAR_ESTADO_USUARIO',
-    module: 'USUARIOS',
+    accion: 'ACTUALIZAR_ESTADO_USUARIO',
+    modulo: 'USUARIOS',
     entityId: String(userId),
-    details: { status: user.status }
+    detalles: { estado: user.estado }
   });
 
   res.json({ success: true, data: mapUserRow(user) });
@@ -329,10 +355,10 @@ const getMyProfile = async (req, res, next) => {
   const user = await one(
     `
     SELECT
-      u.id, u.name, u.email, u.area, u.phone, u.status, u.created_at, u.updated_at,
-      r.id AS role_id, r.name AS role_name
-    FROM dbo.users u
-    INNER JOIN dbo.roles r ON r.id = u.role_id
+      u.id, u.nombre, u.email, u.area, u.telefono, u.estado, u.creado_en, u.actualizado_en,
+      r.id AS rol_id, r.nombre AS rol_nombre
+    FROM dbo.usuarios u
+    INNER JOIN dbo.roles r ON r.id = u.rol_id
     WHERE u.id = @id;
     `,
     { id: Number(req.user.id) }
@@ -354,4 +380,9 @@ module.exports = {
   updateUserStatus,
   getMyProfile
 };
+
+
+
+
+
 

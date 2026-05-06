@@ -13,10 +13,10 @@ const getDashboard = async (req, res) => {
   const params = { now: new Date() };
 
   if (req.user.role === ROLES.DOCENTE) {
-    filters.loans.push('l.requester_id = @userId');
-    filters.reservations.push('rv.requester_id = @userId');
-    filters.internalRequests.push('ir.requester_id = @userId');
-    filters.printRequests.push('pr.requester_id = @userId');
+    filters.loans.push('l.solicitante_id = @userId');
+    filters.reservations.push('rv.solicitante_id = @userId');
+    filters.internalRequests.push('ir.solicitante_id = @userId');
+    filters.printRequests.push('pr.solicitante_id = @userId');
     params.userId = Number(req.user.id);
   }
 
@@ -48,20 +48,20 @@ const getDashboard = async (req, res) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.resources r
-      ${resourcesWhere ? `${resourcesWhere} AND r.status = 'ACTIVE'` : "WHERE r.status = 'ACTIVE'"};
+      FROM dbo.recursos r
+      ${resourcesWhere ? `${resourcesWhere} AND r.estado = 'ACTIVE'` : "WHERE r.estado = 'ACTIVE'"};
       `,
       params
     ),
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.loans l
-      INNER JOIN dbo.resources res ON res.id = l.resource_id
+      FROM dbo.prestamos l
+      INNER JOIN dbo.recursos res ON res.id = l.recurso_id
       ${
         loansWhere
-          ? `${loansWhere} AND l.status IN ('ACTIVE', 'OVERDUE')`
-          : "WHERE l.status IN ('ACTIVE', 'OVERDUE')"
+          ? `${loansWhere} AND l.estado IN ('ACTIVE', 'OVERDUE')`
+          : "WHERE l.estado IN ('ACTIVE', 'OVERDUE')"
       };
       `,
       params
@@ -69,20 +69,20 @@ const getDashboard = async (req, res) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.reservations rv
-      INNER JOIN dbo.resources res ON res.id = rv.resource_id
-      ${reservationsWhere ? `${reservationsWhere} AND rv.status = 'PENDING'` : "WHERE rv.status = 'PENDING'"};
+      FROM dbo.reservas rv
+      INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
+      ${reservationsWhere ? `${reservationsWhere} AND rv.estado = 'PENDING'` : "WHERE rv.estado = 'PENDING'"};
       `,
       params
     ),
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.internal_requests ir
+      FROM dbo.solicitudes_internas ir
       ${
         internalWhere
-          ? `${internalWhere} AND ir.status IN ('PENDING', 'IN_PROGRESS')`
-          : "WHERE ir.status IN ('PENDING', 'IN_PROGRESS')"
+          ? `${internalWhere} AND ir.estado IN ('PENDING', 'IN_PROGRESS')`
+          : "WHERE ir.estado IN ('PENDING', 'IN_PROGRESS')"
       };
       `,
       params
@@ -90,72 +90,72 @@ const getDashboard = async (req, res) => {
     scalar(
       `
       SELECT COUNT(1) AS total
-      FROM dbo.print_requests pr
-      ${printsWhere ? `${printsWhere} AND pr.status = 'PENDING'` : "WHERE pr.status = 'PENDING'"};
+      FROM dbo.solicitudes_impresion pr
+      ${printsWhere ? `${printsWhere} AND pr.estado = 'PENDING'` : "WHERE pr.estado = 'PENDING'"};
       `,
       params
     ),
     query(
       `
       SELECT TOP 8
-        r.id, r.name, r.code, r.available_quantity, r.min_stock
-      FROM dbo.resources r
+        r.id, r.nombre, r.codigo, r.cantidad_disponible, r.stock_minimo
+      FROM dbo.recursos r
       ${
         resourcesWhere
-          ? `${resourcesWhere} AND r.status = 'ACTIVE' AND r.available_quantity <= r.min_stock`
-          : "WHERE r.status = 'ACTIVE' AND r.available_quantity <= r.min_stock"
+          ? `${resourcesWhere} AND r.estado = 'ACTIVE' AND r.cantidad_disponible <= r.stock_minimo`
+          : "WHERE r.estado = 'ACTIVE' AND r.cantidad_disponible <= r.stock_minimo"
       }
-      ORDER BY r.available_quantity ASC;
+      ORDER BY r.cantidad_disponible ASC;
       `,
       params
     ),
     query(
       `
       SELECT TOP 8
-        l.id, l.due_date, l.status, l.quantity,
-        req_u.id AS requester_id, req_u.name AS requester_name,
-        res.id AS resource_id, res.name AS resource_name, res.code AS resource_code
-      FROM dbo.loans l
-      INNER JOIN dbo.users req_u ON req_u.id = l.requester_id
-      INNER JOIN dbo.resources res ON res.id = l.resource_id
+        l.id, l.fecha_vencimiento, l.estado, l.cantidad,
+        req_u.id AS solicitante_id, req_u.nombre AS requester_nombre,
+        res.id AS recurso_id, res.nombre AS resource_nombre, res.codigo AS resource_codigo
+      FROM dbo.prestamos l
+      INNER JOIN dbo.usuarios req_u ON req_u.id = l.solicitante_id
+      INNER JOIN dbo.recursos res ON res.id = l.recurso_id
       ${
         loansWhere
-          ? `${loansWhere} AND l.status IN ('ACTIVE', 'OVERDUE') AND l.due_date < @now`
-          : "WHERE l.status IN ('ACTIVE', 'OVERDUE') AND l.due_date < @now"
+          ? `${loansWhere} AND l.estado IN ('ACTIVE', 'OVERDUE') AND l.fecha_vencimiento < @now`
+          : "WHERE l.estado IN ('ACTIVE', 'OVERDUE') AND l.fecha_vencimiento < @now"
       }
-      ORDER BY l.due_date ASC;
+      ORDER BY l.fecha_vencimiento ASC;
       `,
       params
     ),
     query(
       `
-      SELECT l.status, COUNT(1) AS total
-      FROM dbo.loans l
-      INNER JOIN dbo.resources res ON res.id = l.resource_id
+      SELECT l.estado, COUNT(1) AS total
+      FROM dbo.prestamos l
+      INNER JOIN dbo.recursos res ON res.id = l.recurso_id
       ${loansWhere}
-      GROUP BY l.status;
+      GROUP BY l.estado;
       `,
       params
     ),
     query(
       `
-      SELECT rv.status, COUNT(1) AS total
-      FROM dbo.reservations rv
-      INNER JOIN dbo.resources res ON res.id = rv.resource_id
+      SELECT rv.estado, COUNT(1) AS total
+      FROM dbo.reservas rv
+      INNER JOIN dbo.recursos res ON res.id = rv.recurso_id
       ${reservationsWhere}
-      GROUP BY rv.status;
+      GROUP BY rv.estado;
       `,
       params
     ),
     query(
       `
       SELECT TOP 6
-        c.name AS category,
+        c.nombre AS category,
         COUNT(1) AS total
-      FROM dbo.resources r
-      INNER JOIN dbo.categories c ON c.id = r.category_id
+      FROM dbo.recursos r
+      INNER JOIN dbo.categorias c ON c.id = r.categoria_id
       ${resourcesWhere}
-      GROUP BY c.name
+      GROUP BY c.nombre
       ORDER BY total DESC;
       `,
       params
@@ -176,33 +176,40 @@ const getDashboard = async (req, res) => {
         lowStock: lowStock.map((row) => ({
           _id: String(row.id),
           id: String(row.id),
-          name: row.name,
-          code: row.code,
-          availableQuantity: row.available_quantity,
-          minStock: row.min_stock
+          name: row.nombre,
+          nombre: row.nombre,
+          code: row.codigo,
+          codigo: row.codigo,
+          availableQuantity: row.cantidad_disponible,
+          minStock: row.stock_minimo
         })),
         overdueLoans: overdueLoans.map((row) => ({
           _id: String(row.id),
           id: String(row.id),
-          dueDate: row.due_date,
-          status: row.status,
-          quantity: row.quantity,
+          dueDate: row.fecha_vencimiento,
+          status: row.estado,
+          estado: row.estado,
+          quantity: row.cantidad,
+          cantidad: row.cantidad,
           requester: {
-            _id: String(row.requester_id),
-            id: String(row.requester_id),
-            name: row.requester_name
+            _id: String(row.solicitante_id),
+            id: String(row.solicitante_id),
+            name: row.requester_nombre,
+            nombre: row.requester_nombre
           },
           resource: {
-            _id: String(row.resource_id),
-            id: String(row.resource_id),
-            name: row.resource_name,
-            code: row.resource_code
+            _id: String(row.recurso_id),
+            id: String(row.recurso_id),
+            name: row.resource_nombre,
+            nombre: row.resource_nombre,
+            code: row.resource_codigo,
+            codigo: row.resource_codigo
           }
         }))
       },
       charts: {
-        loanStatus: loanStatusChart.map((row) => ({ status: row.status, total: Number(row.total) })),
-        reservationStatus: reservationStatusChart.map((row) => ({ status: row.status, total: Number(row.total) })),
+        loanStatus: loanStatusChart.map((row) => ({ status: row.estado, estado: row.estado, total: Number(row.total) })),
+        reservationStatus: reservationStatusChart.map((row) => ({ status: row.estado, estado: row.estado, total: Number(row.total) })),
         resourcesByCategory: resourcesByCategory.map((row) => ({ category: row.category, total: Number(row.total) }))
       }
     }
@@ -212,4 +219,9 @@ const getDashboard = async (req, res) => {
 module.exports = {
   getDashboard
 };
+
+
+
+
+
 
